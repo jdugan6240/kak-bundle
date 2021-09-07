@@ -19,8 +19,8 @@ define-command bundle-install %{
 
         #Install the plugins
         cd "$kak_opt_bundle_autoload_path"
-        plugins=($kak_opt_bundle_plugins)
-        for plugin in "${plugins[@]}"
+        set -- $kak_opt_bundle_plugins
+        for plugin in "$@"
         do
             git clone $plugin
         done
