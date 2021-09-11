@@ -45,6 +45,18 @@ clear any installed plugins, and `bundle-update` to update any installed plugins
 
 That's all there is to it. Seriously. This plugin manager doesn't do anything else.
 
+## Troubleshooting
+
+In certain cases, running `bundle-update` will fail to update certain plugins. This can occur in the following cases:
+
+- There are local changes that would be overwritten by `git pull`, which `bundle-update` uses, and
+- The author of the plugin force-pushes to their repository, rewriting history in the process.
+
+In this case, running `bundle-force-update <plugin_name>`, where `<plugin_name>` is the name of the plugin causing issues,
+and then running `bundle-update` will force an update to the plugin. However, this will overwrite any local changes made to
+the plugin that haven't been committed to the plugin's remote repository. For example, with kak-lsp, this would be
+`bundle-force-update kak-lsp` and `bundle-update`.
+
 ## License
 
 This plugin is "licensed" under the Unlicense.
