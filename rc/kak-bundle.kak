@@ -1,11 +1,10 @@
-declare-option -hidden str bundle_plugins
+declare-option -hidden str-list bundle_plugins
 
 declare-option -hidden str bundle_core_path "%val{runtime}/autoload"
 declare-option -hidden str bundle_autoload_path "%val{config}/autoload/bundle"
 
 define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plugin." %{
     set-option -add global bundle_plugins %arg{1}
-    set-option -add global bundle_plugins " "
 }
 
 define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
@@ -19,7 +18,7 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
 
         #Install the plugins
         cd "$kak_opt_bundle_autoload_path"
-        set -- $kak_opt_bundle_plugins
+        eval set -- "$kak_quoted_opt_bundle_plugins"
         for plugin in "$@"
         do
             git clone "$plugin"
