@@ -22,7 +22,7 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
         set -- $kak_opt_bundle_plugins
         for plugin in "$@"
         do
-            git clone $plugin
+            git clone "$plugin"
         done
     }
     echo "kak-bundle: bundle-install completed"
@@ -37,10 +37,9 @@ define-command bundle-clean -docstring "Remove all currently installed plugins."
 
 define-command bundle-update -docstring "Update all currently installed plugins." %{
     nop %sh{
-        for dir in $kak_opt_bundle_autoload_path/*
+        for dir in "$kak_opt_bundle_autoload_path"/*
         do
-            cd $dir
-            git pull
+            cd "$dir" && git pull
         done
     }
     echo "kak-bundle: bundle-update completed"
@@ -48,7 +47,7 @@ define-command bundle-update -docstring "Update all currently installed plugins.
 
 define-command bundle-force-update -params 1 -docstring "Forces an update on a specific plugin when bundle-update won't work." %{
     nop %sh{
-        cd $kak_opt_bundle_autoload_path/$1
-        git reset --hard $(git rev-parse @{u})
+        cd "$kak_opt_bundle_autoload_path/$1" &&
+          git reset --hard "$(git rev-parse @{u})"
     }
 }
