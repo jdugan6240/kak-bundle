@@ -34,16 +34,40 @@ source path_to_kak_bundle_repo/rc/kak-bundle.kak
 
 ## Usage
 
-Registering plugins with kak-bundle in your kakrc is done as follows (kak-lsp in this example):
+The directory in which plugins will be installed is defined by the `bundle_path` option. This defaults to
+~/.config/kak/bundle/plugins, but can be changed by setting the `bundle_path` option.
+
+Registering plugins with kak-bundle in your kakrc is done as follows ([kak-lsp](https://github.com/kak-lsp/kak-lsp) in this example):
 
 ```
 bundle https://github.com/kak-lsp/kak-lsp
 ```
 
+However, unlike [plug.kak](https://github.com/andreyorst/plug.kak), this won't immediately load the plugin,
+unless your `bundle_path` is set to a location within the autoload directory.
+
+In order to load installed plugins, run the `bundle-load` command as follows (again, using kak-lsp):
+
+```
+bundle-load kak-lsp
+```
+
 Once your kakrc is saved and reloaded, run `bundle-install` to install the registered plugins, `bundle-clean` to
 clear any installed plugins, and `bundle-update` to update any installed plugins.
 
-That's all there is to it. Seriously. This plugin manager doesn't do anything else.
+An example kakrc snippet that registers [kak-lsp](https://github.com/kak-lsp/kak-lsp), [powerline.kak](https://github.com/andreyorst/powerline.kak) and [smarttab.kak](https://github.com/andreyorst/smarttab.kak), and loads kak-lsp and powerline.kak,
+is as follows:
+
+```
+bundle https://github.com/kak-lsp/kak-lsp
+bundle https://github.com/andreyorst/powerline.kak
+bundle https://github.com/andreyorst/smarttab.kak
+
+# Note that this only loads kak-lsp and powerline.kak, not smarttab.kak.
+bundle-load kak-lsp powerline.kak
+```
+
+That's all there is to it.
 
 ## Troubleshooting
 
