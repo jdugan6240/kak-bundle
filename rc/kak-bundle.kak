@@ -1,3 +1,7 @@
+declare-option -docstring %{
+    git clone options (defaults: single-branch, shallow, no-tags)
+} str bundle_git_clone_opts '--single-branch --depth 3 --no-tags'
+
 declare-option -hidden str-list bundle_plugins
 
 declare-option -hidden str bundle_path "%val{config}/bundle/plugins"
@@ -17,7 +21,10 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
         cd "$kak_opt_bundle_path" || exit 1
         for plugin in "$@"
         do
-            git clone "$plugin"
+            case "$plugin" in
+                (*' '*) (eval "$plugin") ;;
+                (*) eval "git clone $kak_opt_bundle_git_clone_opts \"\$plugin\"" ;;
+            esac
         done
     }
     echo "kak-bundle: bundle-install completed"
