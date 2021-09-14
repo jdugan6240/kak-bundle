@@ -47,7 +47,7 @@ define-command bundle-force-update -params 1 -docstring "Forces an update on a s
     }
 }
 
-define-command bundle-load -params 1.. -docstring "Loads the given plugins." %{
+define-command bundle-load -params .. -docstring "Loads the given plugins (or all)." %{
     eval %sh{
         load_directory() {
             while IFS= read -r path; do
@@ -57,6 +57,7 @@ define-command bundle-load -params 1.. -docstring "Loads the given plugins." %{
 $(find -L "$1" -type f -name '*.kak')
 EOF
         }
+        if [ $# = 0 ]; then load_directory "$kak_opt_bundle_path"; exit 0; fi
         for val in "$@"
         do
             if [ -e "$kak_opt_bundle_path/$val" ]; then
