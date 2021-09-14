@@ -16,6 +16,18 @@ declare-option -hidden str bundle_sh_code %{
         ! "$kak_opt_bundle_verbose" || printf 'bundle: executing %s\n' "$*" 1>&2
         "$@"
     }
+    bundle_cd() {  # cd to bundle_path, create if missing
+        [ -d "$kak_opt_bundle_path" ] || mkdir -p "$kak_opt_bundle_path"
+        if ! cd "$kak_opt_bundle_path"; then
+            printf '%s\n' "bundle: fatal: failed to create $kak_opt_bundle_path"
+            exit 1
+        fi
+    }
+    bundle_cd_clean() {  # clean, re-create and cd to bundle_path
+        ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: cleaning $kak_opt_bundle_path ..." 1>&2
+        rm -Rf "$kak_opt_bundle_path"
+        bundle_cd
+    }
 }
 
 define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plugin." %{
@@ -23,14 +35,12 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
 }
 
 define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
-    nop %sh{ eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose"
-        #Clean the plugin path
-        vvc rm -Rf "$kak_opt_bundle_path"
-        mkdir -p "$kak_opt_bundle_path"
+    nop %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path"
+        bundle_cd_clean
 
         #Install the plugins
         eval set -- "$kak_quoted_opt_bundle_plugins"
-        cd "$kak_opt_bundle_path" || exit 1
         for plugin in "$@"
         do
             case "$plugin" in
@@ -44,13 +54,14 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
 
 define-command bundle-clean -docstring "Remove all currently installed plugins." %{
     nop %sh{
-        vvc rm -Rf "$kak_opt_bundle_path"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path"
+        bundle_cd_clean
     }
-    echo "kak-bundle: bundle-clean completed"
 }
 
 define-command bundle-update -docstring "Update all currently installed plugins." %{
     nop %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path"
         for dir in "$kak_opt_bundle_path"/*
         do
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
@@ -66,18 +77,20 @@ define-command bundle-update -docstring "Update all currently installed plugins.
 
 define-command bundle-force-update -params 1 -docstring "Forces an update on a specific plugin when bundle-update won't work." %{
     nop %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path"
         cd "$kak_opt_bundle_path/$1" &&
           git reset --hard "$(git rev-parse @{u})"
     }
 }
 
 define-command bundle-load -params .. -docstring "Loads the given plugins (or all)." %{
-    eval %sh{ eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose"
+    eval %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path"
         load_directory() {
             ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
             while IFS= read -r path; do
                 [ -n "$path" ] || continue  # heredoc might produce single empty line
-                printf '%s\n' "try %{ source %<$path> } catch %{ echo -debug kak-bundle: could not load %<$path> }" 1>&3
+                printf '%s\n' "try %{ source %<$path> } catch %{ echo -debug kak-bundle: could not load %<$path> }" >&3
         done <<EOF
 $(find -L "$1" -type f -name '*.kak')
 EOF
