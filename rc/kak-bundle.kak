@@ -13,8 +13,8 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
         mkdir -p "$kak_opt_bundle_path"
 
         #Install the plugins
-        cd "$kak_opt_bundle_path"
         eval set -- "$kak_quoted_opt_bundle_plugins"
+        cd "$kak_opt_bundle_path" || exit 1
         for plugin in "$@"
         do
             git clone "$plugin"
@@ -50,8 +50,12 @@ define-command bundle-force-update -params 1 -docstring "Forces an update on a s
 define-command bundle-load -params 1.. -docstring "Loads the given plugins." %{
     eval %sh{
         load_directory() {
-            find -L "$1" -type f -name '*\.kak' \
-                | sed 's/.*/try %{ source "&" } catch %{ echo -debug kak-bundle: could not load "&" }/'
+            while IFS= read -r path; do
+                [ -n "$path" ] || continue  # heredoc might produce single empty line
+                printf '%s\n' "try %{ source %<$path> } catch %{ echo -debug kak-bundle: could not load %<$path> }"
+        done <<EOF
+$(find -L "$1" -type f -name '*.kak')
+EOF
         }
         for val in "$@"
         do
