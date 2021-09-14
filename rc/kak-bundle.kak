@@ -34,7 +34,7 @@ define-command bundle-update -docstring "Update all currently installed plugins.
     nop %sh{
         for dir in "$kak_opt_bundle_path"/*
         do
-            cd "$dir" && git pull
+            ! [ -h "$dir" ] && cd "$dir" 2>/dev/null && git pull
         done
     }
     echo "kak-bundle: bundle-update completed"
