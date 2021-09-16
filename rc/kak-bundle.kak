@@ -12,6 +12,9 @@ declare-option -docstring %{
 
 declare-option -hidden str-list bundle_plugins
 
+declare-option -hidden str-list bundle_loaded_sources
+declare-option -hidden str-list bundle_new_sources
+
 declare-option -hidden str bundle_path "%val{config}/bundle/plugins"
 
 declare-option -hidden str bundle_sh_code %{
@@ -120,14 +123,20 @@ define-command bundle-force-update -params 1 -docstring "Forces an update on a s
     }
 }
 
+define-command bundle-source -params 1 %{
+  try %{ source %arg{1} } catch %{ echo -debug "bundle: couldn't source %arg{1}" }
+} -hidden
+
 define-command bundle-load -params .. -docstring "Loads the given plugins (or all)." %{
+    set global bundle_new_sources
     eval %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
         load_directory() {
             ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
             while IFS= read -r path; do
                 [ -n "$path" ] || continue  # heredoc might produce single empty line
-                printf '%s\n' "try %{ source %<$path> } catch %{ echo -debug kak-bundle: could not load %<$path> }" >&3
+                printf '%s\n' "set -add global bundle_new_sources %<bundle-source %<$path>;>" >&3
+
         done <<EOF
 $(find -L "$1" -type f -name '*.kak')
 EOF
@@ -140,4 +149,12 @@ EOF
             fi
         done
     }
+    # set-difference: don't load again
+    set -remove global bundle_new_sources %opt{bundle_loaded_sources}
+    # "%opt{}" concatenates "source" statements with spaces between
+    eval "%opt{bundle_new_sources}"
+
+    # remove, then re-add to get set-union
+    set -remove global bundle_loaded_sources %opt{bundle_new_sources}
+    set -add    global bundle_loaded_sources %opt{bundle_new_sources}
 }
