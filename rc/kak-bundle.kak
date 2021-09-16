@@ -127,6 +127,17 @@ define-command bundle-source -params 1 %{
   try %{ source %arg{1} } catch %{ echo -debug "bundle: couldn't source %arg{1}" }
 } -hidden
 
+define-command bundle-load-new %{
+    # set-difference A-B (don't load again)
+    set -remove global bundle_new_sources %opt{bundle_loaded_sources}
+    # "%opt{}" concatenates "source" statements with spaces between
+    eval "%opt{bundle_new_sources}"
+
+    # A + B-A = A-union-B
+    set -add    global bundle_loaded_sources %opt{bundle_new_sources}
+    set global bundle_new_sources
+} -hidden
+
 define-command bundle-load -params .. -docstring "Loads the given plugins (or all)." %{
     set global bundle_new_sources
     eval %sh{
@@ -149,12 +160,5 @@ EOF
             fi
         done
     }
-    # set-difference: don't load again
-    set -remove global bundle_new_sources %opt{bundle_loaded_sources}
-    # "%opt{}" concatenates "source" statements with spaces between
-    eval "%opt{bundle_new_sources}"
-
-    # remove, then re-add to get set-union
-    set -remove global bundle_loaded_sources %opt{bundle_new_sources}
-    set -add    global bundle_loaded_sources %opt{bundle_new_sources}
+    bundle-load-new
 }
