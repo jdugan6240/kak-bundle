@@ -66,6 +66,25 @@ declare-option -hidden str bundle_sh_code %{
             rm -Rf "$tmp_dir"
         fi
     }
+    load_directory() {
+        ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
+        while IFS= read -r path; do
+            [ -n "$path" ] || continue  # heredoc might produce single empty line
+            printf '%s\n' "set -add global bundle_new_sources %<bundle-source %<$path>;>" >&3
+
+    done <<EOF
+$(find -L "$1" -type f -name '*.kak')
+EOF
+    }
+    bundle_cmd_load() {
+        if [ $# = 0 ]; then load_directory "$kak_opt_bundle_path"; exit 0; fi
+        for val in "$@"
+        do
+            if [ -e "$kak_opt_bundle_path/$val" ]; then
+                load_directory "$kak_opt_bundle_path/$val"
+            fi
+        done
+    }
 }
 
 define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plugin." %{
@@ -142,23 +161,7 @@ define-command bundle-load -params .. -docstring "Loads the given plugins (or al
     set global bundle_new_sources
     eval %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
-        load_directory() {
-            ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
-            while IFS= read -r path; do
-                [ -n "$path" ] || continue  # heredoc might produce single empty line
-                printf '%s\n' "set -add global bundle_new_sources %<bundle-source %<$path>;>" >&3
-
-        done <<EOF
-$(find -L "$1" -type f -name '*.kak')
-EOF
-        }
-        if [ $# = 0 ]; then load_directory "$kak_opt_bundle_path"; exit 0; fi
-        for val in "$@"
-        do
-            if [ -e "$kak_opt_bundle_path/$val" ]; then
-                load_directory "$kak_opt_bundle_path/$val"
-            fi
-        done
+        bundle_cmd_load "$@"
     }
     bundle-load-new
 }
