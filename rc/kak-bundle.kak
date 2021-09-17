@@ -66,6 +66,25 @@ declare-option -hidden str bundle_sh_code %{
             rm -Rf "$tmp_dir"
         fi
     }
+    load_directory() {
+        ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
+        while IFS= read -r path; do
+            [ -n "$path" ] || continue  # heredoc might produce single empty line
+            printf '%s\n' "set -add global bundle_new_sources %<bundle-source %<$path>;>" >&3
+
+    done <<EOF
+$(find -L "$1" -type f -name '*.kak')
+EOF
+    }
+    bundle_cmd_load() {
+        if [ $# = 0 ]; then load_directory "$kak_opt_bundle_path"; exit 0; fi
+        for val in "$@"
+        do
+            if [ -e "$kak_opt_bundle_path/$val" ]; then
+                load_directory "$kak_opt_bundle_path/$val"
+            fi
+        done
+    }
 }
 
 define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plugin." %{
@@ -127,34 +146,40 @@ define-command bundle-source -params 1 %{
   try %{ source %arg{1} } catch %{ echo -debug "bundle: couldn't source %arg{1}" }
 } -hidden
 
-define-command bundle-load -params .. -docstring "Loads the given plugins (or all)." %{
-    set global bundle_new_sources
-    eval %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
-        load_directory() {
-            ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
-            while IFS= read -r path; do
-                [ -n "$path" ] || continue  # heredoc might produce single empty line
-                printf '%s\n' "set -add global bundle_new_sources %<bundle-source %<$path>;>" >&3
-
-        done <<EOF
-$(find -L "$1" -type f -name '*.kak')
-EOF
-        }
-        if [ $# = 0 ]; then load_directory "$kak_opt_bundle_path"; exit 0; fi
-        for val in "$@"
-        do
-            if [ -e "$kak_opt_bundle_path/$val" ]; then
-                load_directory "$kak_opt_bundle_path/$val"
-            fi
-        done
-    }
-    # set-difference: don't load again
+define-command bundle-load-new %{
+    # set-difference A-B (don't load again)
     set -remove global bundle_new_sources %opt{bundle_loaded_sources}
     # "%opt{}" concatenates "source" statements with spaces between
     eval "%opt{bundle_new_sources}"
 
-    # remove, then re-add to get set-union
-    set -remove global bundle_loaded_sources %opt{bundle_new_sources}
+    # A + B-A = A-union-B
     set -add    global bundle_loaded_sources %opt{bundle_new_sources}
+    set global bundle_new_sources
+} -hidden
+
+define-command bundle-load -params .. -docstring "Loads the given plugins (or all)." %{
+    set global bundle_new_sources
+    eval %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        bundle_cmd_load "$@"
+    }
+    bundle-load-new
+}
+
+define-command bundle-register-and-load -params .. %{
+    set global bundle_new_sources
+    eval -- %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        shifted=0
+        while [ $# != 0 ]
+        do
+            [ $# -ge 2 ] || { printf '%s\n' 'bundle: ignoring stray arguments: %s' "$*"; return 1; }
+            bundle_cmd_load "${1##*/}"
+            printf '%s\n' >&3 \
+                "bundle %arg{$(( $shifted + 1 ))}" \
+                "bundle-load-new" \
+                "eval %arg{$(( shifted + 2 ))}"
+            shift 2; shifted=$(( shifted + 2 ))
+        done
+    }
 }
