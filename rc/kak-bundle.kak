@@ -165,3 +165,21 @@ define-command bundle-load -params .. -docstring "Loads the given plugins (or al
     }
     bundle-load-new
 }
+
+define-command bundle-register-and-load -params .. %{
+    set global bundle_new_sources
+    eval -- %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        shifted=0
+        while [ $# != 0 ]
+        do
+            [ $# -ge 2 ] || { printf '%s\n' 'bundle: ignoring stray arguments: %s' "$*"; return 1; }
+            bundle_cmd_load "${1##*/}"
+            printf '%s\n' >&3 \
+                "bundle %arg{$(( $shifted + 1 ))}" \
+                "bundle-load-new" \
+                "eval %arg{$(( shifted + 2 ))}"
+            shift 2; shifted=$(( shifted + 2 ))
+        done
+    }
+}
