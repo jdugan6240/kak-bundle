@@ -79,7 +79,7 @@ declare-option -hidden str bundle_sh_code %{
             [ -n "$path" ] || continue  # heredoc might produce single empty line
             printf '%s\n' "bundle-source $path" >&3
     done <<EOF
-$(find -L "$1" -type f -name '*.kak')
+$(find -L "${1%%.git}" -type f -name '*.kak')
 EOF
     }
     bundle_cmd_load() {
@@ -185,15 +185,22 @@ define-command bundle-register-and-load -params .. %{
     }
 }
 
-define-command bundle-lazyload -params .. -docstring "Loads specific script files in plugin." %{
+define-command bundle-pickyload -params .. -docstring "Loads specific script files in plugin." %{
     eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_opt_bundle_loaded_plugins"
         cd "$kak_opt_bundle_path"
+        # Load scripts, if their corresponding plugin hasn't been loaded already
         for path in "$@"
         do
             plugin=$(echo $path | cut -d '/' -f 1)
+            if is_loaded $plugin; then continue; fi
             printf '%s\n' "bundle-source $kak_opt_bundle_path/$path" >&3
             printf "$plugin\n"
+        done
+        # Add loaded scripts to the list of loaded plugins
+        for path in "$@"
+        do
+            plugin=$(echo $path | cut -d '/' -f 1)
             if is_loaded $plugin; then continue; fi
             printf '%s\n' "set -add global bundle_loaded_plugins '$plugin '" >&3
         done
