@@ -65,11 +65,13 @@ declare-option -hidden str bundle_sh_code %{
         fi
     }
     is_loaded() {
-        if [[ " $kak_opt_bundle_loaded_plugins " =~ " $1 " ]]; then
-            true
-        else
-            false
-        fi
+        for plug in $kak_opt_bundle_loaded_plugins
+        do
+            if [ "$1" == "$plug" ]; then
+                return 0
+            fi
+        done
+        return 1
     }
     load_directory() {
         ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
