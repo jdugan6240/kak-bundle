@@ -12,10 +12,8 @@ declare-option -docstring %{
 
 declare-option -hidden str-list bundle_plugins
 
-declare-option -hidden str-list bundle_loaded_sources
-declare-option -hidden str-list bundle_new_sources
-
 declare-option -hidden str bundle_path "%val{config}/bundle/plugins"
+declare-option -hidden str bundle_loaded_plugins "kak-bundle "
 
 declare-option -hidden str bundle_sh_code %{
     set -u; exec 3>&1 1>&2  # from here on, use 1>&3 to output to Kakoune
@@ -66,22 +64,38 @@ declare-option -hidden str bundle_sh_code %{
             rm -Rf "$tmp_dir"
         fi
     }
+    is_loaded() {
+        if [[ " $kak_opt_bundle_loaded_plugins " =~ " $1 " ]]; then
+            true
+        else
+            false
+        fi
+    }
     load_directory() {
         ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
         while IFS= read -r path; do
             [ -n "$path" ] || continue  # heredoc might produce single empty line
-            printf '%s\n' "set -add global bundle_new_sources %<bundle-source %<$path>;>" >&3
-
+            printf '%s\n' "bundle-source $path" >&3
     done <<EOF
 $(find -L "$1" -type f -name '*.kak')
 EOF
     }
     bundle_cmd_load() {
-        if [ $# = 0 ]; then load_directory "$kak_opt_bundle_path"; exit 0; fi
+        if [ $# = 0 ]; then
+            for val in $(ls "$kak_opt_bundle_path")
+            do
+                if is_loaded "$val"; then continue; fi
+                printf '%s\n' "set -add global bundle_loaded_plugins '$val '" >&3
+                load_directory "$kak_opt_bundle_path/$val"
+            done
+            exit 0;
+        fi
         for val in "$@"
         do
+            if is_loaded "$val"; then continue; fi
             if [ -e "$kak_opt_bundle_path/$val" ]; then
                 load_directory "$kak_opt_bundle_path/$val"
+                printf '%s\n' "set -add global bundle_loaded_plugins '$val '" >&3
             fi
         done
     }
@@ -93,7 +107,7 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
 
 define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
     nop %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_opt_bundle_loaded_plugins"
         bundle_cd_clean
 
         #Install the plugins
@@ -112,14 +126,14 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
 
 define-command bundle-clean -docstring "Remove all currently installed plugins." %{
     nop %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_opt_bundle_loaded_plugins"
         bundle_cd_clean
     }
 }
 
 define-command bundle-update -docstring "Update all currently installed plugins." %{
     nop %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_opt_bundle_loaded_plugins"
         for dir in "$kak_opt_bundle_path"/*
         do
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
@@ -136,7 +150,7 @@ define-command bundle-update -docstring "Update all currently installed plugins.
 
 define-command bundle-force-update -params 1 -docstring "Forces an update on a specific plugin when bundle-update won't work." %{
     nop %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_opt_bundle_loaded_plugins"
         cd "$kak_opt_bundle_path/$1" &&
           git reset --hard "$(git rev-parse @{u})"
     }
@@ -146,30 +160,16 @@ define-command bundle-source -params 1 %{
   try %{ source %arg{1} } catch %{ echo -debug "bundle: couldn't source %arg{1}" }
 } -hidden
 
-define-command bundle-load-new %{
-    # set-difference A-B (don't load again)
-    set -remove global bundle_new_sources %opt{bundle_loaded_sources}
-    # "%opt{}" concatenates "source" statements with spaces between
-    eval "%opt{bundle_new_sources}"
-
-    # A + B-A = A-union-B
-    set -add    global bundle_loaded_sources %opt{bundle_new_sources}
-    set global bundle_new_sources
-} -hidden
-
 define-command bundle-load -params .. -docstring "Loads the given plugins (or all)." %{
-    set global bundle_new_sources
     eval %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_opt_bundle_loaded_plugins"
         bundle_cmd_load "$@"
     }
-    bundle-load-new
 }
 
 define-command bundle-register-and-load -params .. %{
-    set global bundle_new_sources
     eval -- %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_opt_bundle_loaded_plugins"
         shifted=0
         while [ $# != 0 ]
         do
@@ -177,9 +177,23 @@ define-command bundle-register-and-load -params .. %{
             bundle_cmd_load "${1##*/}"
             printf '%s\n' >&3 \
                 "bundle %arg{$(( $shifted + 1 ))}" \
-                "bundle-load-new" \
                 "eval %arg{$(( shifted + 2 ))}"
             shift 2; shifted=$(( shifted + 2 ))
+        done
+    }
+}
+
+define-command bundle-lazyload -params .. -docstring "Loads specific script files in plugin." %{
+    eval -- %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_opt_bundle_loaded_plugins"
+        cd "$kak_opt_bundle_path"
+        for path in "$@"
+        do
+            plugin=$(echo $path | cut -d '/' -f 1)
+            printf '%s\n' "bundle-source $kak_opt_bundle_path/$path" >&3
+            printf "$plugin\n"
+            if is_loaded $plugin; then continue; fi
+            printf '%s\n' "set -add global bundle_loaded_plugins '$plugin '" >&3
         done
     }
 }
