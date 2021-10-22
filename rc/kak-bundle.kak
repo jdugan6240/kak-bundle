@@ -79,7 +79,7 @@ declare-option -hidden str bundle_sh_code %{
             [ -n "$path" ] || continue  # heredoc might produce single empty line
             printf '%s\n' "bundle-source $path" >&3
     done <<EOF
-$(find -L "${1%%.git}" -type f -name '*.kak')
+$(find -L "$1" -type f -name '*.kak')
 EOF
     }
     bundle_cmd_load() {
@@ -177,7 +177,9 @@ define-command bundle-register-and-load -params .. %{
         while [ $# != 0 ]
         do
             [ $# -ge 2 ] || { printf '%s\n' 'bundle: ignoring stray arguments: %s' "$*"; return 1; }
-            bundle_cmd_load "${1##*/}"
+            path=$1; path=${path%.git}; path=${path%/}  # strip final / or .git
+            path=${path##*/}; : "${path:?bundle: bad plugin spec <$1>}"
+            bundle_cmd_load "$path"
             printf '%s\n' >&3 \
                 "bundle %arg{$(( $shifted + 1 ))}" \
                 "eval %arg{$(( shifted + 2 ))}"
