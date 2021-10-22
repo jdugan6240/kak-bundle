@@ -189,7 +189,7 @@ define-command bundle-register-and-load -params .. %{
 define-command bundle-pickyload -params .. -docstring "Loads specific script files in plugin." %{
     eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
-        cd "$kak_opt_bundle_path"
+        bundle_cd
         # Load scripts, if their corresponding plugin hasn't been loaded already
         for path in "$@"
         do
