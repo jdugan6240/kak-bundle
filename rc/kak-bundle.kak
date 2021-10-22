@@ -90,7 +90,7 @@ EOF
                 printf '%s\n' "set -add global bundle_loaded_plugins %<$val>" >&3
                 load_directory "$kak_opt_bundle_path/$val"
             done
-            exit 0;
+            return 0
         fi
         for val in "$@"
         do
