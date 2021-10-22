@@ -83,8 +83,9 @@ $(find -L "${1%%.git}" -type f -name '*.kak')
 EOF
     }
     bundle_cmd_load() {
+        bundle_cd
         if [ $# = 0 ]; then
-            for val in $(ls "$kak_opt_bundle_path")
+            for val in *
             do
                 if is_loaded "$val"; then continue; fi
                 printf '%s\n' "set -add global bundle_loaded_plugins %<$val>" >&3
