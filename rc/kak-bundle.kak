@@ -193,7 +193,7 @@ define-command bundle-pickyload -params .. -docstring "Loads specific script fil
         # Load scripts, if their corresponding plugin hasn't been loaded already
         for path in "$@"
         do
-            plugin=$(echo $path | cut -d '/' -f 1)
+            plugin=${path%%/*}
             if is_loaded $plugin; then continue; fi
             printf '%s\n' "bundle-source $kak_opt_bundle_path/$path" >&3
             printf "$plugin\n"
@@ -201,7 +201,7 @@ define-command bundle-pickyload -params .. -docstring "Loads specific script fil
         # Add loaded scripts to the list of loaded plugins
         for path in "$@"
         do
-            plugin=$(echo $path | cut -d '/' -f 1)
+            plugin=${path%%/*}
             if is_loaded $plugin; then continue; fi
             printf '%s\n' "set -add global bundle_loaded_plugins %<$plugin>" >&3
         done
