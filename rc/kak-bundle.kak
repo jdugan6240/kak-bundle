@@ -77,7 +77,7 @@ declare-option -hidden str bundle_sh_code %{
         ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
         while IFS= read -r path; do
             [ -n "$path" ] || continue  # heredoc might produce single empty line
-            printf '%s\n' "bundle-source $path" >&3
+            printf '%s\n' "bundle-source %<$path>" >&3
     done <<EOF
 $(find -L "$1" -type f -name '*.kak')
 EOF
@@ -198,15 +198,15 @@ define-command bundle-pickyload -params .. -docstring "Loads specific script fil
         for path in "$@"
         do
             plugin=${path%%/*}
-            if is_loaded $plugin; then continue; fi
-            printf '%s\n' "bundle-source $kak_opt_bundle_path/$path" >&3
+            if is_loaded "$plugin"; then continue; fi
+            printf '%s\n' "bundle-source %<$kak_opt_bundle_path/$path>" >&3
             printf "$plugin\n"
         done
         # Add loaded scripts to the list of loaded plugins
         for path in "$@"
         do
             plugin=${path%%/*}
-            if is_loaded $plugin; then continue; fi
+            if is_loaded "$plugin"; then continue; fi
             printf '%s\n' "set -add global bundle_loaded_plugins %<$plugin>" >&3
         done
     }
