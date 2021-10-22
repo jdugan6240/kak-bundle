@@ -67,7 +67,7 @@ declare-option -hidden str bundle_sh_code %{
     is_loaded() {
         for plug in $kak_opt_bundle_loaded_plugins
         do
-            if [ "$1" == "$plug" ]; then
+            if [ "$1" = "$plug" ]; then
                 return 0
             fi
         done
