@@ -99,6 +99,8 @@ EOF
             if [ -e "$kak_opt_bundle_path/$val" ]; then
                 load_directory "$kak_opt_bundle_path/$val"
                 printf '%s\n' "set -add global bundle_loaded_plugins %<$val>" >&3
+            else
+                printf '%s\n' "bundle: ignoring missing plugin <$val>"
             fi
         done
     }
