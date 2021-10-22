@@ -67,6 +67,10 @@ declare-option -hidden str bundle_sh_code %{
     is_loaded() {
         query=$1
         eval set -- $kak_quoted_opt_bundle_loaded_plugins
+        case " $* " in
+            (*" $query "*) ;;  # return 0 # probably enough (no ' ' in paths)
+            (*) return 1 ;;
+        esac
         for plug
         do
             [ "$query" != "$plug" ] || return 0
