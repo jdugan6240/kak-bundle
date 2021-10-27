@@ -1,6 +1,10 @@
 declare-option -docstring %{
-    git clone options (defaults: single-branch, shallow, no-tags)
-} str bundle_git_clone_opts '--single-branch --depth 3 --no-tags'
+    git clone options (defaults: single-branch, no-tags)
+} str bundle_git_clone_opts '--single-branch --no-tags'
+declare-option -docstring %{
+    git shallow options (clone & update; defaults: --depth=1)
+} str bundle_git_shallow_opts '--depth=1'
+
 
 declare-option -docstring %{
     Print information messages
@@ -125,7 +129,7 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
         do
             case "$plugin" in
                 (*' '*) vvc eval "$plugin" ;;
-                (*) eval "vvc git clone $kak_opt_bundle_git_clone_opts \"\$plugin\"" ;;
+                (*) eval "vvc git clone $kak_opt_bundle_git_clone_opts $kak_opt_bundle_git_shallow_opts \"\$plugin\"" ;;
             esac
         done
         bundle_tmp_clean
@@ -147,7 +151,7 @@ define-command bundle-update -docstring "Update all currently installed plugins.
         do
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
                 ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: updating in $PWD ..." 1>&2
-                vvc git pull
+                vvc git pull $kak_opt_bundle_git_shallow_opts
             else
                 ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: skipping $dir ..." 1>&2
             fi
