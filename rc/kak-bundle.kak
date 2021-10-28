@@ -26,7 +26,10 @@ declare-option -hidden str bundle_sh_code %{
         if "$kak_opt_bundle_parallel"; then
             bundle_tmp_new job
             printf '%s\n' "$*" >"$tmp_file".cmd
-            { "$@" >"$tmp_file".log 2>&1 3>&1; } &
+            printf '%s' "$PWD" >"$tmp_file".pwd
+
+            > "$tmp_file.running"; >"$tmp_file".log
+            ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
         else
             "$@"
         fi
@@ -52,19 +55,32 @@ declare-option -hidden str bundle_sh_code %{
         tmp_cnt=$(( tmp_cnt + 1 ))
         tmp_file=$tmp_dir/bundle-"$tmp_cnt.${1:-tmp}"
     }
+    bundle_tmp_log_wait() {
+        [ -n "$tmp_dir" ] || return 0
+        while :; do
+            printf >"$kak_command_fifo" '%s\n' 'edit -scratch *bundle-status*; exec %{%"_d}; exec i %{Bundle status:<ret><ret>} %{<esc>}'
+            for log in "$tmp_dir"/*.job.log
+            do
+                [ -e "$log" ] || continue
+                if [ -e "${log%.log}.running" ]; then
+                    status=running
+                else status="%file<$log>"
+                fi
+                printf 'bundle-status-log-show %s%s%s %s\n' '%<' "${log%.log}" '>' "$status"
+            done >"$kak_command_fifo"
+
+            for dummy in 1; do
+                set -- "$tmp_dir"/*.job.running
+                [ -e "$1" ] || { return 0; }
+                sleep 1
+            done
+        done
+    }
     bundle_tmp_clean() {
         if "$kak_opt_bundle_parallel"; then
-            wait
+            bundle_tmp_log_wait
         fi
         if [ -n "$tmp_dir" ] && [ -e "$tmp_dir"/.rmme ]; then
-            if "$kak_opt_bundle_verbose"; then
-                for log in "$tmp_dir"/*.job.log
-                do
-                    printf 'bundle: output from: '
-                    cat "${log%.log}.cmd"
-                    cat "$log"
-                done 1>&2
-            fi
             rm -Rf "$tmp_dir"
         fi
     }
@@ -118,9 +134,26 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
     set-option -add global bundle_plugins %arg{1}
 }
 
+define-command bundle-status-log-show -params 2 -docstring %{
+    Paste log for one job into status buffer
+} %{
+    eval -save-regs dquote %{
+        buffer *bundle-status*
+        exec %{ge<a-O>}
+        reg dquote "## bundle: in "; exec %{P}
+        eval reg dquote "%%file<%arg{1}.pwd>"; exec %{P}
+        reg dquote ': '; exec %{P}
+        eval reg dquote "%%file<%arg{1}.cmd>"; exec %{P}
+        reg dquote "## bundle: in %reg{dquote}"
+        exec %{<a-o>ge}
+        reg dquote %arg{2}; exec %{P}
+    }
+    buffer *bundle-status*  # raise buffer
+} -hidden
+
 define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
     nop %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         bundle_cd_clean
 
         #Install the plugins
@@ -139,14 +172,14 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
 
 define-command bundle-clean -docstring "Remove all currently installed plugins." %{
     nop %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         bundle_cd_clean
     }
 }
 
 define-command bundle-update -docstring "Update all currently installed plugins." %{
     nop %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         for dir in "$kak_opt_bundle_path"/*
         do
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
@@ -163,7 +196,7 @@ define-command bundle-update -docstring "Update all currently installed plugins.
 
 define-command bundle-force-update -params 1 -docstring "Forces an update on a specific plugin when bundle-update won't work." %{
     nop %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         cd "$kak_opt_bundle_path/$1" &&
           git reset --hard "$(git rev-parse @{u})"
     }
@@ -175,14 +208,14 @@ define-command bundle-source -params 1 %{
 
 define-command bundle-load -params .. -docstring "Loads the given plugins (or all)." %{
     eval %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         bundle_cmd_load "$@"
     }
 }
 
 define-command bundle-register-and-load -params .. %{
     eval -- %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         shifted=0
         while [ $# != 0 ]
         do
@@ -200,7 +233,7 @@ define-command bundle-register-and-load -params .. %{
 
 define-command bundle-pickyload -params .. -docstring "Loads specific script files in plugin." %{
     eval -- %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         bundle_cd
         # Load scripts, if their corresponding plugin hasn't been loaded already
         for path in "$@"
