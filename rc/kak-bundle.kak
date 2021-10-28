@@ -25,16 +25,13 @@ declare-option -hidden str bundle_sh_code %{
 '
     vvc() {  # execute command, maybe print beforehand, maybe background
         ! "$kak_opt_bundle_verbose" || printf 'bundle: executing %s\n' "$*" 1>&2
-        if "$kak_opt_bundle_parallel"; then
-            bundle_tmp_new job
-            printf '%s\n' "$*" >"$tmp_file".cmd
-            printf '%s' "$PWD" >"$tmp_file".pwd
+        bundle_tmp_new job
+        printf '%s\n' "$*" >"$tmp_file".cmd
+        printf '%s' "$PWD" >"$tmp_file".pwd
 
-            > "$tmp_file.running"; >"$tmp_file".log
-            ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
-        else
-            "$@"
-        fi
+        > "$tmp_file.running"; >"$tmp_file".log
+        ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
+        "$kak_opt_bundle_parallel" || bundle_tmp_log_wait
     }
     bundle_cd() {  # cd to bundle_path, create if missing
         [ -d "$kak_opt_bundle_path" ] || mkdir -p "$kak_opt_bundle_path"
@@ -167,7 +164,7 @@ define-command bundle-status-log-show -params 1 -docstring %{
         exec %{%"_d}
         reg dquote %opt{bundle_log}
         exec %{P}
-        reg dquote "(%arg{1} left)"
+        reg dquote "(%arg{1} running)"
         exec %{2<a-o>} %{geP}
     }
 }
