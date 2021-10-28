@@ -11,8 +11,8 @@ declare-option -docstring %{
 } bool bundle_verbose false
 
 declare-option -docstring %{
-    Run install & update commands in parallel
-} bool bundle_parallel false
+    Maximum install & update jobs to run in parallel
+} int bundle_parallel 4
 
 declare-option -hidden str-list bundle_plugins
 
@@ -31,7 +31,9 @@ declare-option -hidden str bundle_sh_code %{
 
         > "$tmp_file.running"; >"$tmp_file".log
         ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
-        "$kak_opt_bundle_parallel" || bundle_tmp_log_wait
+
+        set -- "$tmp_dir"/*.job.running; [ -e "$1" ] || set --
+        [ "$kak_opt_bundle_parallel" -gt $# ] || bundle_tmp_log_wait
     }
     bundle_cd() {  # cd to bundle_path, create if missing
         [ -d "$kak_opt_bundle_path" ] || mkdir -p "$kak_opt_bundle_path"
@@ -89,9 +91,7 @@ declare-option -hidden str bundle_sh_code %{
         done
     }
     bundle_tmp_clean() {
-        if "$kak_opt_bundle_parallel"; then
-            bundle_tmp_log_wait
-        fi
+        bundle_tmp_log_wait
         if [ -n "$tmp_dir" ] && [ -e "$tmp_dir"/.rmme ]; then
             rm -Rf "$tmp_dir"
         fi
@@ -165,7 +165,7 @@ define-command bundle-status-log-show -params 1 -docstring %{
         reg dquote %opt{bundle_log}
         exec %{P}
         reg dquote "(%arg{1} running)"
-        exec %{2<a-o>} %{geP}
+        exec %{<a-o>} %{geP}
     }
 }
 
