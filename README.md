@@ -66,6 +66,20 @@ After this is done, the registered plugins can be installed with the `bundle-ins
 If a plugin has received updates since being installed, **kak-bundle** can update all installed plugins with the `bundle-update`
 command.
 
+**kak-bundle** also optionally supports loading specific scripts from a plugin, if not all the scripts from a plugin are desired.
+This is done with the `bundle-pickyload` command. For example, selecting a specific script from [kakoune-extra](https://github.com/lenormf/kakoune-extra):
+
+```
+bundle-pickyload kakoune-extra/overstrike.kak
+```
+
+The above command assumes the desired script is in the top level directory of the plugin. Many plugins place their kakscripts in
+the rc/ directory, however, in which case you can do something like the following ([powerline.kak](https://github.com/andreyorst/powerline.kak)):
+
+```
+bundle-pickyload powerline.kak/rc/powerline.kak powerline.kak/rc/themes/gruvbox.kak powerline.kak/rc/modules/bufname.kak
+```
+
 ## **kak-bundle** Configuration
 
 **kak-bundle** provides the following options that can be used to change how kak-bundle works:
@@ -74,7 +88,10 @@ command.
 - `bundle_parallel` - `false` by default, this determines if `bundle-install` and `bundle-update` should install plugins in parallel.
 - `bundle_verbose` - `false` by default, this determines if extra information is printed to a log file.
 - `bundle_git_clone_opts` - This determines the options `bundle-install` and `bundle-update` pass to the `git clone` command to install
-and update plugins. By default, this is `'--single-branch --depth 3 --no-tags'`.
+and update plugins. By default, this is `'--single-branch --no-tags'`.
+- `bundle_git_shallow_opts` - This determines the shallow clone options `bundle-install` and `bundle-update` pass to the `git clone` command
+to install and update plugins. This is used to create shallow clones of the plugin repositories, which store less of the plugin's commit
+history, thus saving space and download time. By default, this is `'--depth=1'`.
 
 ## Tips and Tricks
 
