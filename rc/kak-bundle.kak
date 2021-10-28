@@ -21,6 +21,8 @@ declare-option -hidden str-list bundle_loaded_plugins 'kak-bundle'
 
 declare-option -hidden str bundle_sh_code %{
     set -u; exec 3>&1 1>&2  # from here on, use 1>&3 to output to Kakoune
+    newline='
+'
     vvc() {  # execute command, maybe print beforehand, maybe background
         ! "$kak_opt_bundle_verbose" || printf 'bundle: executing %s\n' "$*" 1>&2
         if "$kak_opt_bundle_parallel"; then
@@ -55,24 +57,32 @@ declare-option -hidden str bundle_sh_code %{
         tmp_cnt=$(( tmp_cnt + 1 ))
         tmp_file=$tmp_dir/bundle-"$tmp_cnt.${1:-tmp}"
     }
+    bundle_tmp_log_load() {
+        if [ -e "$1.running" ]; then
+            running=$(( running + 1))
+            status="%{...$newline}"
+        else status="%file<$1.log>"
+        fi
+        printf 'bundle-status-log-load %s%s%s %s\n' '%<' "$1" '>' "$status"
+    }
     bundle_tmp_log_wait() {
         [ -n "$tmp_dir" ] || return 0
         while :; do
-            printf >"$kak_command_fifo" '%s\n' 'edit -scratch *bundle-status*; exec %{%"_d}; exec i %{Bundle status:<ret><ret>} %{<esc>}'
+            {
+            printf '%s\n' 'set global bundle_log %{}; edit -scratch *bundle-status*'
+            running=0
             for log in "$tmp_dir"/*.job.log
             do
-                [ -e "$log" ] || continue
-                if [ -e "${log%.log}.running" ]; then
-                    status=running
-                else status="%file<$log>"
-                fi
-                printf 'bundle-status-log-show %s%s%s %s\n' '%<' "${log%.log}" '>' "$status"
-            done >"$kak_command_fifo"
+                ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}"
+            done
+            printf '%s\n' "bundle-status-log-show $running"
+            } >"$kak_command_fifo"
 
-            for dummy in 1; do
-                set -- "$tmp_dir"/*.job.running
-                [ -e "$1" ] || { return 0; }
+            [ "$running" != 0 ] || break
+            for dummy in 1 2 3; do  # update in N secs, or as soon as jobs finish
                 sleep 1
+                set -- "$tmp_dir"/*.job.running; [ -e "$1" ] || set --
+                [ $# = "$running" ] || break
             done
         done
     }
@@ -134,22 +144,28 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
     set-option -add global bundle_plugins %arg{1}
 }
 
-define-command bundle-status-log-show -params 2 -docstring %{
-    Paste log for one job into status buffer
+declare-option -hidden str bundle_log
+define-command bundle-status-log-load -params 2 -docstring %{
 } %{
-    eval -save-regs dquote %{
-        buffer *bundle-status*
-        exec %{ge<a-O>}
-        reg dquote "## bundle: in "; exec %{P}
-        eval reg dquote "%%file<%arg{1}.pwd>"; exec %{P}
-        reg dquote ': '; exec %{P}
-        eval reg dquote "%%file<%arg{1}.cmd>"; exec %{P}
-        reg dquote "## bundle: in %reg{dquote}"
-        exec %{<a-o>ge}
-        reg dquote %arg{2}; exec %{P}
-    }
-    buffer *bundle-status*  # raise buffer
+    set -add global bundle_log "## in <"
+    eval set -add global bundle_log "%%file<%arg{1}.pwd>"
+    set -add global bundle_log '>: '
+    eval set -add global bundle_log "%%file<%arg{1}.cmd>"
+    set -add global bundle_log %arg{2}
 } -hidden
+
+define-command bundle-status-log-show -params 1 -docstring %{
+    Show all loaded logs in status buffer
+} %{
+    buffer *bundle-status*
+    eval -save-regs dquote %{
+        exec %{%"_d}
+        reg dquote %opt{bundle_log}
+        exec %{P}
+        reg dquote "(%arg{1} left)"
+        exec %{2<a-o>} %{geP}
+    }
+}
 
 define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
     nop %sh{
