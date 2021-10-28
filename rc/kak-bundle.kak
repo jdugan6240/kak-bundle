@@ -50,7 +50,7 @@ declare-option -hidden str bundle_sh_code %{
             touch "$tmp_dir"/.rmme  # safeguard
         fi
         tmp_cnt=$(( tmp_cnt + 1 ))
-        tmp_file=$tmp_dir/bundle-$(printf '%05d' "$tmp_cnt").${1:-tmp}
+        tmp_file=$tmp_dir/bundle-"$tmp_cnt.${1:-tmp}"
     }
     bundle_tmp_clean() {
         if "$kak_opt_bundle_parallel"; then
