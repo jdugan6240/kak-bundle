@@ -33,7 +33,10 @@ declare-option -hidden str bundle_sh_code %{
         ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
 
         set -- "$tmp_dir"/*.job.running; [ -e "$1" ] || set --
-        [ "$kak_opt_bundle_parallel" -gt $# ] || bundle_tmp_log_wait
+        if [ $# -ge "$kak_opt_bundle_parallel" ]; then
+            bundle_tmp_log_wait
+            sleep 0.1 || sleep 1  # command_fifo doesn't like fast re-opening
+        fi
     }
     bundle_cd() {  # cd to bundle_path, create if missing
         [ -d "$kak_opt_bundle_path" ] || mkdir -p "$kak_opt_bundle_path"
@@ -92,6 +95,7 @@ declare-option -hidden str bundle_sh_code %{
     }
     bundle_tmp_clean() {
         bundle_tmp_log_wait
+        printf '%s\n' >&3 'buffer *bundle-status*; exec %{ge} %{o} %{DONE} %{<esc>}'
         if [ -n "$tmp_dir" ] && [ -e "$tmp_dir"/.rmme ]; then
             rm -Rf "$tmp_dir"
         fi
@@ -170,7 +174,7 @@ define-command bundle-status-log-show -params 1 -docstring %{
 }
 
 define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
-    nop %sh{
+    eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         bundle_cd_clean
 
@@ -196,7 +200,7 @@ define-command bundle-clean -docstring "Remove all currently installed plugins."
 }
 
 define-command bundle-update -docstring "Update all currently installed plugins." %{
-    nop %sh{
+    eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         for dir in "$kak_opt_bundle_path"/*
         do
