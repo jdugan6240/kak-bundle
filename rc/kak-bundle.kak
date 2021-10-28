@@ -57,11 +57,14 @@ declare-option -hidden str bundle_sh_code %{
         tmp_cnt=$(( tmp_cnt + 1 ))
         tmp_file=$tmp_dir/bundle-"$tmp_cnt.${1:-tmp}"
     }
-    bundle_tmp_log_load() {
+    bundle_tmp_log_load() {  # args: log-without-ext finished-or-running
         if [ -e "$1.running" ]; then
+            ! "$2" || return 0
             running=$(( running + 1))
             status="%{...$newline}"
-        else status="%file<$1.log>"
+        else
+            "$2" || return 0
+            status="%file<$1.log>"
         fi
         printf 'bundle-status-log-load %s%s%s %s\n' '%<' "$1" '>' "$status"
     }
@@ -71,9 +74,11 @@ declare-option -hidden str bundle_sh_code %{
             {
             printf '%s\n' 'set global bundle_log %{}; edit -scratch *bundle-status*'
             running=0
-            for log in "$tmp_dir"/*.job.log
-            do
-                ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}"
+            set -- "$tmp_dir"/*.job.log
+            for finished in true false; do  # running jobs -> bottom
+                for log; do
+                    ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}" "$finished"
+                done
             done
             printf '%s\n' "bundle-status-log-show $running"
             } >"$kak_command_fifo"
