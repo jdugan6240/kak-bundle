@@ -36,7 +36,7 @@ declare-option -hidden str bundle_sh_code %{
         > "$tmp_file.running"; >"$tmp_file".log
         ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
 
-        set -- "$tmp_dir"/*.job.running; [ -e "$1" ] || set --
+        set -- "$tmp_dir"/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
         [ $# -lt "$kak_opt_bundle_parallel" ] || wait $!
     }
     bundle_cd() {  # cd to bundle_path, create if missing
@@ -75,7 +75,7 @@ declare-option -hidden str bundle_sh_code %{
     bundle_tmp_log_wait() {
         [ -n "$tmp_dir" ] || return 0
         while :; do
-            set -- "$tmp_dir"/*.job.running; [ -e "$1" ] || set --
+            set -- "$tmp_dir"/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
             [ $# != 0 ] || break
             sleep 1
         done
