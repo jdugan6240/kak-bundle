@@ -70,6 +70,24 @@ declare-option -hidden str bundle_sh_code %{
         fi
         printf 'bundle-status-log-load %s%s%s %s\n' '%<' "$1" '>' "$status"
     }
+    bundle_job_chk() {
+        set -- "$tmp_dir"/*.job.running
+        case "$1" in (*'/*.'*)  # glob failed
+            set --
+        esac
+        [ $# != "$running" ]  # return value: job-count changed
+    }
+    bundle_poll() {  # args: n interval poll_cmd...
+        local n0 i interval
+        n0=$1; i=$(( $1 - 1 )); interval=$2; shift 2
+        while :; do
+            sleep "$interval" || break  # try fractional sleep
+            [ "$i" != 0 ] || break; i=$(( i - 1 ))
+            ! "$@" || return 0
+        done
+        sleep "$interval" || sleep $(( n0 * interval ))  # handle int-only sleep
+        "$@"
+    }
     bundle_tmp_log_wait() {
         [ -n "$tmp_dir" ] || return 0
         while :; do
@@ -86,11 +104,7 @@ declare-option -hidden str bundle_sh_code %{
             } >"$kak_command_fifo"
 
             [ "$running" != 0 ] || break
-            for dummy in 1 2 3; do  # update in N secs, or as soon as jobs finish
-                sleep 1
-                set -- "$tmp_dir"/*.job.running; [ -e "$1" ] || set --
-                [ $# = "$running" ] || break
-            done
+            bundle_poll 20 0.1 bundle_job_chk
         done
     }
     bundle_tmp_clean() {
