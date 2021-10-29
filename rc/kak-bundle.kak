@@ -21,6 +21,7 @@ declare-option -hidden str-list bundle_loaded_plugins 'kak-bundle'
 
 declare-option -hidden str bundle_log_running
 declare-option -hidden str bundle_log_finished
+declare-option -hidden str bundle_tmp_dir
 
 declare-option -hidden str bundle_sh_code %{
     set -u; exec 3>&1 1>&2  # from here on, use 1>&3 to output to Kakoune
@@ -36,10 +37,7 @@ declare-option -hidden str bundle_sh_code %{
         ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
 
         set -- "$tmp_dir"/*.job.running; [ -e "$1" ] || set --
-        if [ $# -ge "$kak_opt_bundle_parallel" ]; then
-            bundle_tmp_log_wait
-            sleep 0.1 || sleep 1  # command_fifo doesn't like fast re-opening
-        fi
+        [ $# -lt "$kak_opt_bundle_parallel" ] || wait $!
     }
     bundle_cd() {  # cd to bundle_path, create if missing
         [ -d "$kak_opt_bundle_path" ] || mkdir -p "$kak_opt_bundle_path"
@@ -57,7 +55,7 @@ declare-option -hidden str bundle_sh_code %{
     bundle_tmp_new() {  # increments counter, stores filename in tmp_file
         if [ -z "$tmp_dir" ]; then
             tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle.$$.XXXXXX)
-            touch "$tmp_dir"/.rmme  # safeguard
+            > "$tmp_dir"/.rmme  # safeguard
         fi
         tmp_cnt=$(( tmp_cnt + 1 ))
         tmp_file=$tmp_dir/bundle-"$tmp_cnt.${1:-tmp}"
@@ -74,48 +72,25 @@ declare-option -hidden str bundle_sh_code %{
         fi
         printf 'bundle-status-log-load %s %%file<%s.pwd> %%file<%s.cmd> %s\n' "$log_opt" "$1" "$1" "$status"
     }
-    bundle_job_chk() {
-        set -- "$tmp_dir"/*.job.running
-        case "$1" in (*'/*.'*)  # glob failed
-            set --
-        esac
-        [ $# != "$running" ]  # return value: job-count changed
-    }
-    bundle_poll() {  # args: n interval poll_cmd...
-        local n0 i interval
-        n0=$1; i=$(( $1 - 1 )); interval=$2; shift 2
-        while :; do
-            sleep "$interval" || break  # try fractional sleep
-            [ "$i" != 0 ] || break; i=$(( i - 1 ))
-            ! "$@" || return 0
-        done
-        sleep "$interval" || sleep $(( n0 * interval ))  # handle int-only sleep
-        "$@"
-    }
     bundle_tmp_log_wait() {
         [ -n "$tmp_dir" ] || return 0
         while :; do
-            {
-            printf '%s\n' 'edit -scratch *bundle-status*'
-            printf 'set buffer bundle_log_%s ""\n' finished running
-            running=0
-            set -- "$tmp_dir"/*.job.log
-            for log; do
-                ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}"
-            done
-            printf '%s\n' "bundle-status-log-show $running"
-            } >"$kak_command_fifo"
-
-            [ "$running" != 0 ] || break
-            bundle_poll 20 0.1 bundle_job_chk
+            set -- "$tmp_dir"/*.job.running; [ -e "$1" ] || set --
+            [ $# != 0 ] || break
+            sleep 1
         done
     }
     bundle_tmp_clean() {
-        bundle_tmp_log_wait
-        printf '%s\n' >&3 'buffer *bundle-status*; exec %{ge} %{o} %{DONE} %{<esc>}'
         if [ -n "$tmp_dir" ] && [ -e "$tmp_dir"/.rmme ]; then
             rm -Rf "$tmp_dir"
         fi
+    }
+    bundle_status_init() {
+        bundle_tmp_new  # ensure tmp_dir exists
+        printf >&3 '%s\n' \
+            'edit -scratch *bundle-status*' \
+            "set buffer bundle_tmp_dir %<$tmp_dir>" \
+            'hook -group bundle-status buffer NormalIdle .* %{ bundle-status-update-hook }'
     }
     is_loaded() {
         query=$1
@@ -167,6 +142,30 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
     set-option -add global bundle_plugins %arg{1}
 }
 
+define-command bundle-status-update-hook -params .. -docstring %{
+} %{
+    eval -- %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        tmp_dir=$kak_opt_bundle_tmp_dir
+        printf >&3 '%s\n' 'buffer *bundle-status*'
+
+        printf >&3 'set buffer bundle_log_%s ""\n' finished running  # clear log vars
+        running=0
+        set -- "$tmp_dir"/*.job.log
+        for log; do
+            ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}" >&3
+        done
+        printf >&3 '%s\n' "bundle-status-log-show $running"
+        if [ -e "$tmp_dir/.done" ]; then
+            printf >&3 '%s\n' \
+                'rmhooks buffer bundle-status' \
+                'set buffer bundle_tmp_dir %{}' \
+                'exec %{ge} %{o} %{DONE} %{<esc>}' \
+                'nop %sh{bundle_tmp_clean}'  # run from kak AFTER finishing up
+        fi
+    }
+    exec HLHL  # trigger another hook later
+} -hidden
 define-command bundle-status-log-load -params 4 -docstring %{
 } %{
     buffer *bundle-status*
@@ -191,10 +190,12 @@ define-command bundle-status-log-show -params 1 -docstring %{
 define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
     eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        bundle_status_init
         bundle_cd_clean
 
         #Install the plugins
         eval set -- "$kak_quoted_opt_bundle_plugins"
+        (
         for plugin in "$@"
         do
             case "$plugin" in
@@ -202,7 +203,9 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
                 (*) eval "vvc git clone $kak_opt_bundle_git_clone_opts $kak_opt_bundle_git_shallow_opts \"\$plugin\"" ;;
             esac
         done
-        bundle_tmp_clean
+        bundle_tmp_log_wait
+        > "$tmp_dir"/.done
+        ) >/dev/null 2>&1 3>&- &
     }
     echo "kak-bundle: bundle-install completed"
 }
@@ -217,6 +220,8 @@ define-command bundle-clean -docstring "Remove all currently installed plugins."
 define-command bundle-update -docstring "Update all currently installed plugins." %{
     eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+        bundle_status_init
+        (
         for dir in "$kak_opt_bundle_path"/*
         do
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
@@ -226,9 +231,10 @@ define-command bundle-update -docstring "Update all currently installed plugins.
                 ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: skipping $dir ..." 1>&2
             fi
         done
-        bundle_tmp_clean
+        bundle_tmp_log_wait
+        > "$tmp_dir"/.done
+        ) >/dev/null 2>&1 3>&- &
     }
-    echo "kak-bundle: bundle-update completed"
 }
 
 define-command bundle-force-update -params 1 -docstring "Forces an update on a specific plugin when bundle-update won't work." %{
