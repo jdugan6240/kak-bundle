@@ -165,7 +165,9 @@ define-command bundle-status-update-hook -params .. -docstring %{
                 'nop %sh{bundle_tmp_clean}'  # run from kak AFTER finishing up
         fi
     }
-    exec HLHL  # trigger another hook later
+    hook -once -group bundle-status buffer NormalIdle .* %{
+        exec HLHL
+    }  # re-trigger
 } -hidden
 define-command bundle-status-log-load -params 4 -docstring %{
 } %{
