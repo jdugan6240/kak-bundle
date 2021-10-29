@@ -210,7 +210,6 @@ define-command bundle-install -docstring "Install all plugins known to kak-bundl
         > "$tmp_dir"/.done
         ) >/dev/null 2>&1 3>&- &
     }
-    echo "kak-bundle: bundle-install completed"
 }
 
 define-command bundle-clean -docstring "Remove all currently installed plugins." %{
@@ -228,10 +227,7 @@ define-command bundle-update -docstring "Update all currently installed plugins.
         for dir in "$kak_opt_bundle_path"/*
         do
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
-                ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: updating in $PWD ..." 1>&2
                 vvc git pull $kak_opt_bundle_git_shallow_opts
-            else
-                ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: skipping $dir ..." 1>&2
             fi
         done
         bundle_tmp_log_wait
