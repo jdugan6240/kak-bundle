@@ -80,11 +80,6 @@ declare-option -hidden str bundle_sh_code %{
             sleep 1
         done
     }
-    bundle_tmp_clean() {
-        if [ -n "$tmp_dir" ] && [ -e "$tmp_dir"/.rmme ]; then
-            rm -Rf "$tmp_dir"
-        fi
-    }
     bundle_status_init() {
         bundle_tmp_new  # ensure tmp_dir exists
         printf >&3 '%s\n' \
@@ -159,10 +154,13 @@ define-command bundle-status-update-hook -params .. -docstring %{
         if [ -e "$tmp_dir/.done" ]; then
             printf >&3 '%s\n' \
                 'rmhooks buffer bundle-status' \
-                'set buffer bundle_tmp_dir %{}' \
                 'map buffer normal <esc> %{: delete-buffer *bundle-status*<ret>}' \
                 'exec %{ge} %{o} %{DONE (<} %{esc} %{> = dismiss)} %{<esc>}' \
-                'nop %sh{bundle_tmp_clean}'  # run from kak AFTER finishing up
+                'nop -- %sh{
+                    set -- "$kak_opt_bundle_tmp_dir"
+                    if [ -n "$1" ] && [ -e "$1"/.rmme ]; then rm -Rf "$1"; fi
+                }' \
+                'set buffer bundle_tmp_dir %{}'
         fi
     }
     hook -once -group bundle-status buffer NormalIdle .* %{
