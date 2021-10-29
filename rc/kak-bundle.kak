@@ -19,6 +19,9 @@ declare-option -hidden str-list bundle_plugins
 declare-option -hidden str bundle_path "%val{config}/bundle/plugins"
 declare-option -hidden str-list bundle_loaded_plugins 'kak-bundle'
 
+declare-option -hidden str bundle_log_running
+declare-option -hidden str bundle_log_finished
+
 declare-option -hidden str bundle_sh_code %{
     set -u; exec 3>&1 1>&2  # from here on, use 1>&3 to output to Kakoune
     newline='
@@ -59,16 +62,17 @@ declare-option -hidden str bundle_sh_code %{
         tmp_cnt=$(( tmp_cnt + 1 ))
         tmp_file=$tmp_dir/bundle-"$tmp_cnt.${1:-tmp}"
     }
-    bundle_tmp_log_load() {  # args: log-without-ext finished-or-running
+    bundle_tmp_log_load() {  # args: log-without-ext
+        local status log_opt
         if [ -e "$1.running" ]; then
-            ! "$2" || return 0
             running=$(( running + 1))
+            log_opt=running
             status="%{...$newline}"
         else
-            "$2" || return 0
+            log_opt=finished
             status="%file<$1.log>"
         fi
-        printf 'bundle-status-log-load %%file<%s.pwd> %%file<%s.cmd> %s\n' "$1" "$1" "$status"
+        printf 'bundle-status-log-load %s %%file<%s.pwd> %%file<%s.cmd> %s\n' "$log_opt" "$1" "$1" "$status"
     }
     bundle_job_chk() {
         set -- "$tmp_dir"/*.job.running
@@ -92,13 +96,12 @@ declare-option -hidden str bundle_sh_code %{
         [ -n "$tmp_dir" ] || return 0
         while :; do
             {
-            printf '%s\n' 'edit -scratch *bundle-status*; set buffer bundle_log %{}'
+            printf '%s\n' 'edit -scratch *bundle-status*'
+            printf 'set buffer bundle_log_%s ""\n' finished running
             running=0
             set -- "$tmp_dir"/*.job.log
-            for finished in true false; do  # running jobs -> bottom
-                for log; do
-                    ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}" "$finished"
-                done
+            for log; do
+                ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}"
             done
             printf '%s\n' "bundle-status-log-show $running"
             } >"$kak_command_fifo"
@@ -164,11 +167,10 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
     set-option -add global bundle_plugins %arg{1}
 }
 
-declare-option -hidden str bundle_log
-define-command bundle-status-log-load -params 3 -docstring %{
+define-command bundle-status-log-load -params 4 -docstring %{
 } %{
     buffer *bundle-status*
-    set -add buffer bundle_log "## in <%arg{1}>: %arg{2}%arg{3}"
+    eval "set -add buffer bundle_log_%arg{1} ""## in <%%arg{2}>: %%arg{3}%%arg{4}"" "
 } -hidden
 
 define-command bundle-status-log-show -params 1 -docstring %{
@@ -177,7 +179,9 @@ define-command bundle-status-log-show -params 1 -docstring %{
     buffer *bundle-status*
     eval -save-regs dquote %{
         exec %{%"_d}
-        reg dquote %opt{bundle_log}
+        reg dquote %opt{bundle_log_finished}
+        exec %{P}
+        reg dquote %opt{bundle_log_running}
         exec %{P}
         reg dquote "(%arg{1} running)"
         exec %{<a-o>} %{geP}
