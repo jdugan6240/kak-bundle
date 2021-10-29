@@ -68,7 +68,7 @@ declare-option -hidden str bundle_sh_code %{
             "$2" || return 0
             status="%file<$1.log>"
         fi
-        printf 'bundle-status-log-load %s%s%s %s\n' '%<' "$1" '>' "$status"
+        printf 'bundle-status-log-load %%file<%s.pwd> %%file<%s.cmd> %s\n' "$1" "$1" "$status"
     }
     bundle_job_chk() {
         set -- "$tmp_dir"/*.job.running
@@ -92,7 +92,7 @@ declare-option -hidden str bundle_sh_code %{
         [ -n "$tmp_dir" ] || return 0
         while :; do
             {
-            printf '%s\n' 'set global bundle_log %{}; edit -scratch *bundle-status*'
+            printf '%s\n' 'edit -scratch *bundle-status*; set buffer bundle_log %{}'
             running=0
             set -- "$tmp_dir"/*.job.log
             for finished in true false; do  # running jobs -> bottom
@@ -165,13 +165,10 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
 }
 
 declare-option -hidden str bundle_log
-define-command bundle-status-log-load -params 2 -docstring %{
+define-command bundle-status-log-load -params 3 -docstring %{
 } %{
-    set -add global bundle_log "## in <"
-    eval set -add global bundle_log "%%file<%arg{1}.pwd>"
-    set -add global bundle_log '>: '
-    eval set -add global bundle_log "%%file<%arg{1}.cmd>"
-    set -add global bundle_log %arg{2}
+    buffer *bundle-status*
+    set -add buffer bundle_log "## in <%arg{1}>: %arg{2}%arg{3}"
 } -hidden
 
 define-command bundle-status-log-show -params 1 -docstring %{
@@ -185,7 +182,7 @@ define-command bundle-status-log-show -params 1 -docstring %{
         reg dquote "(%arg{1} running)"
         exec %{<a-o>} %{geP}
     }
-}
+} -hidden
 
 define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
     eval -- %sh{
