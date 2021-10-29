@@ -160,7 +160,8 @@ define-command bundle-status-update-hook -params .. -docstring %{
             printf >&3 '%s\n' \
                 'rmhooks buffer bundle-status' \
                 'set buffer bundle_tmp_dir %{}' \
-                'exec %{ge} %{o} %{DONE} %{<esc>}' \
+                'map buffer normal <esc> %{: delete-buffer *bundle-status*<ret>}' \
+                'exec %{ge} %{o} %{DONE (<} %{esc} %{> = dismiss)} %{<esc>}' \
                 'nop %sh{bundle_tmp_clean}'  # run from kak AFTER finishing up
         fi
     }
