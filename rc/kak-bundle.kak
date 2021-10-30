@@ -204,7 +204,7 @@ define-command bundle-install -params .. -docstring "Install specific plugins (o
 
         #Install the plugins
         (
-        for plugin in "$@"
+        for plugin
         do
             installer2path path "$plugin"
             rm -Rf "$path"
@@ -226,13 +226,17 @@ define-command bundle-clean -docstring "Remove all currently installed plugins."
     }
 }
 
-define-command bundle-update -docstring "Update all currently installed plugins." %{
+define-command bundle-update -params .. -docstring "Update specific plugins (or all currently installed)" %{
     eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         bundle_status_init
+        bundle_cd
+        [ $# != 0 ] || set -- *
+        [ $# = 1 ] || [ -e "$1" ] || set --
         (
-        for dir in "$kak_opt_bundle_path"/*
+        for dir
         do
+            dir=$kak_opt_bundle_path/$dir
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
                 vvc git pull $kak_opt_bundle_git_shallow_opts
             fi
