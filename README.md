@@ -123,6 +123,12 @@ def bundle-install-hooks %{
 
 You can then run the new command `bundle-install-hooks` instead of `bundle-install`.
 
+### [plug.kak](https://github.com/andreyorst/plug.kak) Compatibility
+
+If coming from `plug.kak` as your plugin manager, there's an addon to `kak-bundle` that may ease the transition. The [kak-bundle-plug](https://github.com/kstr0k/kak-bundle-plug)
+plugin is designed to emulate the `plug-chain` command that `plug.kak` provides, even supporting many of the switches that the `plug`
+command supports. More details on how this plugin works can be found in its repository's README.
+
 ## Troubleshooting
 
 In certain cases, running `bundle-update` will fail to update certain plugins. This can occur in the following cases:
