@@ -87,7 +87,14 @@ declare-option -hidden str bundle_sh_code %{
             "set buffer bundle_tmp_dir %<$tmp_dir>" \
             'hook -group bundle-status buffer NormalIdle .* %{ bundle-status-update-hook }'
     }
+    installer2path() {  # args: outvar installer
+        [ $1 = path ] || local path
+        path=$2; path=${path%.git}; path=${path%/}  # strip final / or .git
+        path=${path##*/}; : "${path:?bundle: bad plugin spec <$2>}"
+        eval "$1=\$path"
+    }
     is_loaded() {
+        local query plug
         query=$1
         eval set -- $kak_quoted_opt_bundle_loaded_plugins
         case " $* " in
@@ -188,17 +195,19 @@ define-command bundle-status-log-show -params 1 -docstring %{
     }
 } -hidden
 
-define-command bundle-install -docstring "Install all plugins known to kak-bundle." %{
+define-command bundle-install -params .. -docstring "Install specific plugins (or all known to kak-bundle)" %{
     eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         bundle_status_init
-        bundle_cd_clean
+        bundle_cd
+        [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
 
         #Install the plugins
-        eval set -- "$kak_quoted_opt_bundle_plugins"
         (
-        for plugin in "$@"
+        for plugin
         do
+            installer2path path "$plugin"
+            rm -Rf "$path"
             case "$plugin" in
                 (*' '*) vvc eval "$plugin" ;;
                 (*) eval "vvc git clone $kak_opt_bundle_git_clone_opts $kak_opt_bundle_git_shallow_opts \"\$plugin\"" ;;
@@ -217,13 +226,17 @@ define-command bundle-clean -docstring "Remove all currently installed plugins."
     }
 }
 
-define-command bundle-update -docstring "Update all currently installed plugins." %{
+define-command bundle-update -params .. -docstring "Update specific plugins (or all currently installed)" %{
     eval -- %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
         bundle_status_init
+        bundle_cd
+        [ $# != 0 ] || set -- *
+        [ $# = 1 ] || [ -e "$1" ] || set --
         (
-        for dir in "$kak_opt_bundle_path"/*
+        for dir
         do
+            dir=$kak_opt_bundle_path/$dir
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
                 vvc git pull $kak_opt_bundle_git_shallow_opts
             fi
@@ -260,8 +273,7 @@ define-command bundle-register-and-load -params .. %{
         while [ $# != 0 ]
         do
             [ $# -ge 2 ] || { printf '%s\n' 'bundle: ignoring stray arguments: %s' "$*"; return 1; }
-            path=$1; path=${path%.git}; path=${path%/}  # strip final / or .git
-            path=${path##*/}; : "${path:?bundle: bad plugin spec <$1>}"
+            installer2path path "$1"
             bundle_cmd_load "$path"
             printf '%s\n' >&3 \
                 "bundle %arg{$(( $shifted + 1 ))}" \
