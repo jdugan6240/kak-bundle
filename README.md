@@ -15,7 +15,7 @@ mkdir -p $HOME/.config/kak/bundle/plugins
 git clone https://github.com/jdugan6240/kak-bundle $HOME/.config/kak/bundle/plugins/kak-bundle
 ```
 
-This isn't enough by itself, though - Kakoune needs to be told to load kak-bundle. This is done by adding the following
+This isn't enough by itself, though &mdash; Kakoune needs to be told to load kak-bundle. This is done by adding the following
 line to your kakrc:
 
 ```
@@ -43,18 +43,16 @@ bundle https://github.com/kak-lsp/kak-lsp
 ```
 
 However, this by itself will not load the plugin, unless `bundle_path` is set to a location in your autoload. To actually
-load the installed plugins, the `bundle-load` command must be called. The `bundle-load` command with no arguments will
-load all registered plugins by default:
+load the installed plugins, the `bundle-load` command must be called. With no arguments it will load all registered plugins:
 
 ```
 bundle-load # Load all registered plugins
 ```
 
-However, `bundle-load` can be used to selectively load specific registered plugins if desired. This is done by passing
-the names of the plugins to `bundle-load` as arguments:
+Alternatively, if passed the names of specific plugins as arguments, `bundle-load` will selectively load those:
 
 ```
-bundle-load kak-lsp # Note that only kak-lsp is loaded, not any additional registered plugins
+bundle-load kak-lsp # only kak-lsp is loaded -- not any additional registered plugins
 ```
 
 Once these commands are written in your kakrc for the first time, the kakrc must be re-sourced to inform **kak-bundle**
@@ -63,10 +61,70 @@ Kakoune.
 
 After this is done, the registered plugins can be installed with the `bundle-install` command.
 
-If a plugin has received updates since being installed, **kak-bundle** can update all installed plugins with the `bundle-update`
-command.
+Plugins may receive updates after being installed. Use the `bundle-update` command to update all installed plugins, or pass specific plugin folders (under `bundle_path`) as arguments to update selectively
+```
+bundle-update                        # update all plugins
+bundle-update kak-lsp kakoune-extra  # update individual plugins
+```
 
-**kak-bundle** also optionally supports loading specific scripts from a plugin, if not all the scripts from a plugin are desired.
+## Advanced commands
+
+### Installers
+
+In addition to simple URLs, the `bundle` command takes full shell commands ("installers") as an argument (recognized as such if they contain space characters). The installers will run from `bundle_path`. Each installer **must** create a directory with a name that exactly matches the substring after the **last "`/`" in the installer command**; this is important for `bundle-install` and `bundle-register-and-load` (to be introduced below).
+
+Installers can be useful for a number of things:
+```
+# extract a specific branch / tag of a plugin repository:
+bundle 'git clone -b BRANCH_OR_TAG ... $URL'
+
+# rename the clone, e.g. to avoid conflicting names:
+bundle 'git clone $URL ./renamed-folder'
+
+# load an externally-managed plugin from outside bundle_path:
+bundle 'ln -sf ~/src/my-plugin'
+# external plugins load normally, but bundle-update will ignore them
+```
+
+### Register, load and configure
+
+**kak-bundle** provides a "super-command" that combines the plugin registration, loading and configuration steps, for one or several plugins
+
+```
+bundle-register-and-load \
+  URL-1 %{
+    # config-1 kakscript code
+  } \
+  'installer-shell-code-2 args...' %{
+    # config-2 kakscript code
+  } \
+  # etc; keep it in one long command
+```
+
+This can be more convenient and maintainable than performing the steps separately. There can be any number of `register-and-load` calls, each with one or more plugin arguments. Passing multiple `plugin+config` pairs speeds up loading, as each `register-and-load` translates into a single shell invocation.
+
+### Running post-install hooks
+
+Some plugins require additional processing after being installed (or updated for that matter) &mdash; say, a compilation step. A notable example of a plugin like this
+is [kak-lsp](https://github.com/kak-lsp/kak-lsp). **kak-bundle** offers support for this in the `bundle_do_install_hooks` and
+`bundle_install_hooks` options. Setting `bundle_do_install_hooks` to `true` enables running shell code after the `bundle-install` or
+`bundle-update` commands are completed. This shell code is defined with the `bundle_install_hooks` option. For example, the below
+configuration sets the post-install hooks to compile `kak-lsp` after the install/update is complete: 
+
+```
+set-option global bundle_do_install_hooks true
+set-option global bundle_install_hooks %{
+  cd ~/.config/kak/bundle/plugins/kak-lsp/
+  cargo install --locked --force --path .
+}
+```
+
+Once this is done, running `bundle-install` or `bundle-update` and exiting the buffer will spawn a new buffer with the output of the
+defined post-install hooks.
+
+### Partial loading
+
+**kak-bundle** supports loading specific scripts from a plugin, if not all the scripts from a plugin are desired.
 This is done with the `bundle-pickyload` command. For example, selecting a specific script from [kakoune-extra](https://github.com/lenormf/kakoune-extra):
 
 ```
@@ -84,50 +142,20 @@ bundle-pickyload powerline.kak/rc/powerline.kak powerline.kak/rc/themes/gruvbox.
 
 **kak-bundle** provides the following options that can be used to change how kak-bundle works:
 
-- `bundle_path` - This dictates the directory **kak-bundle** installs plugins to. This is `%val{config}/bundle/plugins` by default.
-- `bundle_parallel` - `false` by default, this determines if `bundle-install` and `bundle-update` should install plugins in parallel.
-- `bundle_verbose` - `false` by default, this determines if extra information is printed to a log file.
-- `bundle_git_clone_opts` - This determines the options `bundle-install` and `bundle-update` pass to the `git clone` command to install
+- `bundle_path` &mdash; This dictates the directory **kak-bundle** installs plugins to. This is `%val{config}/bundle/plugins` by default.
+- `bundle_parallel` &mdash; `4` by default, this determines how many parallel jobs `bundle-install` and `bundle-update` can spawn; set to 1 to disable parallelism.
+- `bundle_verbose` &mdash; `false` by default, this determines if extra information is printed to a log file.
+- `bundle_git_clone_opts` &mdash; This determines the options `bundle-install` and `bundle-update` pass to the `git clone` command to install
 and update plugins. By default, this is `'--single-branch --no-tags'`.
-- `bundle_git_shallow_opts` - This determines the shallow clone options `bundle-install` and `bundle-update` pass to the `git clone` command
+- `bundle_git_shallow_opts` &mdash; This determines the shallow clone options `bundle-install` and `bundle-update` pass to the `git clone` command
 to install and update plugins. This is used to create shallow clones of the plugin repositories, which store less of the plugin's commit
 history, thus saving space and download time. By default, this is `'--depth=1'`.
-
-## Tips and Tricks
-
-### Loading specific plugin branches or tags
-
-In addition to accepting the URL of the desired plugin, the `bundle` command can also accept an entire `git clone` command.
-This can be useful for extracting a specific branch or tag of a given plugin repository:
-
-```
-bundle 'git clone -b BRANCH ... $URL'
-```
-
-### Running post-update hooks
-
-Some plugins require additional processing after being installed - say, a compilation step. A notable example of a plugin like this
-is [kak-lsp](https://github.com/kak-lsp/kak-lsp). **kak-bundle** offers support for this in the `bundle_do_install_hooks` and
-`bundle_install_hooks` options. Setting `bundle_do_install_hooks` to `true` enables running shell code after the `bundle-install` or
-`bundle-update` commands are completed. This shell code is defined with the `bundle_install_hooks` option. For example, the below
-configuration sets the post-install hooks to compile `kak-lsp` after the install/update is complete: 
-
-```
-set-option global bundle_do_install_hooks true
-set-option global bundle_install_hooks %{
-  cd ~/.config/kak/bundle/plugins/kak-lsp/
-  cargo install --locked --force --path .
-}
-```
-
-Once this is done, running `bundle-install` or `bundle-update` and exiting the buffer will spawn a new buffer with the output of the
-defined post-install hooks.
 
 ### [plug.kak](https://github.com/andreyorst/plug.kak) Compatibility
 
 If coming from `plug.kak` as your plugin manager, there's an addon to `kak-bundle` that may ease the transition. The [kak-bundle-plug](https://github.com/kstr0k/kak-bundle-plug)
-plugin is designed to emulate the `plug-chain` command that `plug.kak` provides, even supporting many of the switches that the `plug`
-command supports. More details on how this plugin works can be found in its repository's README.
+plugin is designed to emulate the `plug-chain` command that `plug.kak` provides, supporting many of the switches that the `plug`
+command supports. More details on how this addon works can be found in its repository's README.
 
 ## Troubleshooting
 
