@@ -258,11 +258,11 @@ define-command bundle-update -params .. -docstring "Update specific plugins (or 
         bundle_status_init
         bundle_cd
         [ $# != 0 ] || set -- *
-        [ $# = 1 ] || [ -e "$1" ] || set --
         (
         for dir
         do
             dir=$kak_opt_bundle_path/$dir
+            [ -e "$dir" ] || continue
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
                 vvc git pull $kak_opt_bundle_git_shallow_opts
             fi
