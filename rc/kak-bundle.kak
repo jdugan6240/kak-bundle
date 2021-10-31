@@ -29,7 +29,7 @@ declare-option -docstring %{
 
 declare-option -docstring %{
     Post-install hooks to be performed after install/update
-} str bundle_install_hooks %{ }
+} str bundle_install_hooks %{}
 
 declare-option -hidden str bundle_sh_code %{
     set -u; exec 3>&1 1>&2  # from here on, use 1>&3 to output to Kakoune
@@ -155,17 +155,21 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
 define-command bundle-run-install-hooks %{
     delete-buffer *bundle-status*
     eval %sh{
-        if [ $kak_opt_bundle_do_install_hooks = true ]; then
-            output=$(mktemp -d -t kak-bundle-XXXXXXX)/fifo
-            mkfifo ${output}
+        set -u
+        [ -n "$kak_opt_bundle_install_hooks" ] || exit 0
+        if "$kak_opt_bundle_do_install_hooks"; then
+            fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
+            output=$fifo_tmp_dir/fifo
+            mkfifo "$output"
             ( {
-                echo "Running post-install hooks: \n"
+                printf '%s\n' 'Running post-install hooks'
                 eval "$kak_opt_bundle_install_hooks"
-                echo "\n Post-install hooks complete; press <ESC> to dismiss"
-              } > ${output} 2>&1 & ) > /dev/null 2>&1 < /dev/null
-            echo "edit! -fifo ${output} -scroll *bundle-install-hooks*
-                  map buffer normal <esc> %{: delete-buffer *bundle-install-hooks*<ret>}
-                  hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -r $(dirname ${output})} }"
+                printf '\n %s\n' 'Post-install hooks complete; press <ESC> to dismiss'
+              } > "$output") > /dev/null 2>&1 < /dev/null &
+            printf '%s\n' \
+                "edit! -fifo ${output} -scroll *bundle-install-hooks*" \
+                'map buffer normal <esc> %{: delete-buffer *bundle-install-hooks*<ret>}' \
+                "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
         fi
     }
 }
