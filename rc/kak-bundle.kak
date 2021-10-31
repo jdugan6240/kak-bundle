@@ -116,6 +116,7 @@ declare-option -hidden str bundle_sh_code %{
         return 1
     }
     load_directory() {
+        local path
         ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
         while IFS= read -r path; do
             [ -n "$path" ] || continue  # heredoc might produce single empty line
@@ -125,6 +126,7 @@ $(find -L "$1" -type f -name '*.kak')
 EOF
     }
     bundle_cmd_load() {
+        local val
         bundle_cd
         [ $# != 0 ] || set -- *
         for val
