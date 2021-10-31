@@ -293,9 +293,9 @@ define-command bundle-register-and-load -params .. %{
             [ $# -ge 2 ] || { printf '%s\n' 'bundle: ignoring stray arguments: %s' "$*"; return 1; }
             installer2path path "$1"
             bundle_cmd_load "$path"
-            printf '%s\n' >&3 \
-                "bundle %arg{$(( $shifted + 1 ))}" \
-                "eval %arg{$(( shifted + 2 ))}"
+            printf '%s\n' >&3 "bundle %arg{$(( $shifted + 1 ))}"
+            # don't configure missing plugins # TODO: also track load failues
+            ! [ -e "$path" ] || printf '%s\n' >&3 "eval %arg{$(( shifted + 2 ))}"
             shift 2; shifted=$(( shifted + 2 ))
         done
     }
