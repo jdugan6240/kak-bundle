@@ -116,6 +116,7 @@ declare-option -hidden str bundle_sh_code %{
         return 1
     }
     load_directory() {
+        local path
         ! "$kak_opt_bundle_verbose" || printf '%s\n' "bundle: loading $1 ..."
         while IFS= read -r path; do
             [ -n "$path" ] || continue  # heredoc might produce single empty line
@@ -125,17 +126,10 @@ $(find -L "$1" -type f -name '*.kak')
 EOF
     }
     bundle_cmd_load() {
+        local val
         bundle_cd
-        if [ $# = 0 ]; then
-            for val in *
-            do
-                if is_loaded "$val"; then continue; fi
-                printf '%s\n' "set -add global bundle_loaded_plugins %<$val>" >&3
-                load_directory "$kak_opt_bundle_path/$val"
-            done
-            return 0
-        fi
-        for val in "$@"
+        [ $# != 0 ] || set -- *
+        for val
         do
             if is_loaded "$val"; then continue; fi
             if [ -e "$kak_opt_bundle_path/$val" ]; then
@@ -262,11 +256,11 @@ define-command bundle-update -params .. -docstring "Update specific plugins (or 
         bundle_status_init
         bundle_cd
         [ $# != 0 ] || set -- *
-        [ $# = 1 ] || [ -e "$1" ] || set --
         (
         for dir
         do
             dir=$kak_opt_bundle_path/$dir
+            [ -e "$dir" ] || continue
             if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
                 vvc git pull $kak_opt_bundle_git_shallow_opts
             fi
@@ -305,9 +299,9 @@ define-command bundle-register-and-load -params .. %{
             [ $# -ge 2 ] || { printf '%s\n' 'bundle: ignoring stray arguments: %s' "$*"; return 1; }
             installer2path path "$1"
             bundle_cmd_load "$path"
-            printf '%s\n' >&3 \
-                "bundle %arg{$(( $shifted + 1 ))}" \
-                "eval %arg{$(( shifted + 2 ))}"
+            printf '%s\n' >&3 "bundle %arg{$(( $shifted + 1 ))}"
+            # don't configure missing plugins # TODO: also track load failues
+            ! [ -e "$path" ] || printf '%s\n' >&3 "eval %arg{$(( shifted + 2 ))}"
             shift 2; shifted=$(( shifted + 2 ))
         done
     }
