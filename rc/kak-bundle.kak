@@ -29,7 +29,7 @@ declare-option -docstring %{
 
 declare-option -docstring %{
     Post-install hooks to be performed after install/update
-} str bundle_install_hooks %{ }
+} str bundle_install_hooks %{}
 
 declare-option -hidden str bundle_sh_code %{
     set -u; exec 3>&1 1>&2  # from here on, use 1>&3 to output to Kakoune
@@ -156,6 +156,7 @@ define-command bundle-run-install-hooks %{
     delete-buffer *bundle-status*
     eval %sh{
         set -u
+        [ -n "$kak_opt_bundle_install_hooks" ] || exit 0
         if "$kak_opt_bundle_do_install_hooks"; then
             fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
             output=$fifo_tmp_dir/fifo
