@@ -107,21 +107,21 @@ bundle 'git clone -b BRANCH ... $URL'
 ### Running post-update hooks
 
 Some plugins require additional processing after being installed - say, a compilation step. A notable example of a plugin like this
-is [kak-lsp](https://github.com/kak-lsp/kak-lsp). While **kak-bundle** has no builtin support for this, it's fairly trivial to define
-a command that does this (using kak-lsp as an example):
+is [kak-lsp](https://github.com/kak-lsp/kak-lsp). **kak-bundle** offers support for this in the `bundle_do_install_hooks` and
+`bundle_install_hooks` options. Setting `bundle_do_install_hooks` to `true` enables running shell code after the `bundle-install` or
+`bundle-update` commands are completed. This shell code is defined with the `bundle_install_hooks` option. For example, the below
+configuration sets the post-install hooks to compile `kak-lsp` after the install/update is complete: 
 
 ```
-def bundle-install-hooks %{
-    bundle-install
-    eval %sh{
-   	    cd $kak_opt_bundle_path/kak-lsp
-   	    cargo install --locked --force --path .
-   	    echo "echo Post-install processing complete"
-    }
+set-option global bundle_do_install_hooks true
+set-option global bundle_install_hooks %{
+  cd ~/.config/kak/bundle/plugins/kak-lsp/
+  cargo install --locked --force --path .
 }
 ```
 
-You can then run the new command `bundle-install-hooks` instead of `bundle-install`.
+Once this is done, running `bundle-install` or `bundle-update` and exiting the buffer will spawn a new buffer with the output of the
+defined post-install hooks.
 
 ### [plug.kak](https://github.com/andreyorst/plug.kak) Compatibility
 

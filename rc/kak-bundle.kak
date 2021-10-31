@@ -23,6 +23,14 @@ declare-option -hidden str bundle_log_running
 declare-option -hidden str bundle_log_finished
 declare-option -hidden str bundle_tmp_dir
 
+declare-option -docstring %{
+    Perform post-install hooks after install/update
+} bool bundle_do_install_hooks false
+
+declare-option -docstring %{
+    Post-install hooks to be performed after install/update
+} str bundle_install_hooks %{ }
+
 declare-option -hidden str bundle_sh_code %{
     set -u; exec 3>&1 1>&2  # from here on, use 1>&3 to output to Kakoune
     newline='
@@ -144,6 +152,24 @@ define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plug
     set-option -add global bundle_plugins %arg{1}
 }
 
+define-command bundle-run-install-hooks %{
+    delete-buffer *bundle-status*
+    eval %sh{
+        if [ $kak_opt_bundle_do_install_hooks = true ]; then
+            output=$(mktemp -d -t kak-bundle-XXXXXXX)/fifo
+            mkfifo ${output}
+            ( {
+                echo "Running post-install hooks: \n"
+                eval "$kak_opt_bundle_install_hooks"
+                echo "\n Post-install hooks complete; press <ESC> to dismiss"
+              } > ${output} 2>&1 & ) > /dev/null 2>&1 < /dev/null
+            echo "edit! -fifo ${output} -scroll *bundle-install-hooks*
+                  map buffer normal <esc> %{: delete-buffer *bundle-install-hooks*<ret>}
+                  hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -r $(dirname ${output})} }"
+        fi
+    }
+}
+
 define-command bundle-status-update-hook -params .. -docstring %{
 } %{
     eval -- %sh{
@@ -161,7 +187,7 @@ define-command bundle-status-update-hook -params .. -docstring %{
         if [ -e "$tmp_dir/.done" ]; then
             printf >&3 '%s\n' \
                 'rmhooks buffer bundle-status' \
-                'map buffer normal <esc> %{: delete-buffer *bundle-status*<ret>}' \
+                'map buffer normal <esc> %{: bundle-run-install-hooks<ret>}' \
                 'exec %{ge} %{o} %{DONE (<} %{esc} %{> = dismiss)} %{<esc>}' \
                 'nop -- %sh{
                     set -- "$kak_opt_bundle_tmp_dir"
