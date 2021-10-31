@@ -163,7 +163,7 @@ command supports. More details on how this addon works can be found in its repos
 
 **kak-bundle** was designed for speed from the start, which translates to extremely fast load times. For reference, here's some performance
 statistics comparing the performance of **kak-bundle** with the `kak-bundle-plug` addon to that of `plug.kak`'s `plug-chain` command (courtesy of
-Alin Mr.: (https://codeberg.org/almr):
+Alin Mr. (https://codeberg.org/almr)):
 
 | Command                                                                                         | Mean [ms]    | Min [ms] | Max [ms] |
 |-------------------------------------------------------------------------------------------------|--------------|----------|----------|
@@ -189,4 +189,5 @@ This plugin is "licensed" under the Unlicense.
 ## Contributors
 
 James Dugan (https://codeberg.org/jdugan6240)
+
 Alin Mr. <almr.oss@outlook.com>
