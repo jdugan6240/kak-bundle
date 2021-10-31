@@ -3,6 +3,8 @@
 **kak-bundle** is a plugin manager for Kakoune designed for speed without sacrificing utility. It can install and
 update plugins, and optionally manage loading individual plugins for testing purposes.
 
+![bundle-status](/img/install.jpg)
+
 ## Install
 
 **kak-bundle** can be located anywhere on the system, but in order to manage itself, it should be installed in the
@@ -157,6 +159,17 @@ If coming from `plug.kak` as your plugin manager, there's an addon to `kak-bundl
 plugin is designed to emulate the `plug-chain` command that `plug.kak` provides, supporting many of the switches that the `plug`
 command supports. More details on how this addon works can be found in its repository's README.
 
+## Performance
+
+**kak-bundle** was designed for speed from the start, which translates to extremely fast load times. For reference, here's some performance
+statistics comparing the performance of **kak-bundle** with the `kak-bundle-plug` addon to that of `plug.kak`'s `plug-chain` command (courtesy of
+Alin Mr.: (https://codeberg.org/almr):
+
+| Command                                                                                         | Mean [ms]    | Min [ms] | Max [ms] |
+|-------------------------------------------------------------------------------------------------|--------------|----------|----------|
+| KAKOUNE_POSIX_SHELL=/bin/dash KAK_PLUG_CHAIN=plug-chain /opt/kak/bin/kak -ui dummy -e quit      | 282.1 +- 2.9 | 277.6    | 285.8    |
+| KAKOUNE_POSIX_SHELL=/bin/dash KAK_PLUG_CHAIN=kak-bundle-plug /opt/kak/bin/kak -ui dummy -e quit | 244.1 +- 2.6 | 240.1    | 247.5    |
+
 ## Troubleshooting
 
 In certain cases, running `bundle-update` will fail to update certain plugins. This can occur in the following cases:
@@ -172,3 +185,8 @@ the plugin that haven't been committed to the plugin's remote repository. For ex
 ## License
 
 This plugin is "licensed" under the Unlicense.
+
+## Contributors
+
+James Dugan (https://codeberg.org/jdugan6240)
+Alin Mr. <almr.oss@outlook.com>
