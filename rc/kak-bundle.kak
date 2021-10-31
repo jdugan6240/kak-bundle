@@ -126,16 +126,8 @@ EOF
     }
     bundle_cmd_load() {
         bundle_cd
-        if [ $# = 0 ]; then
-            for val in *
-            do
-                if is_loaded "$val"; then continue; fi
-                printf '%s\n' "set -add global bundle_loaded_plugins %<$val>" >&3
-                load_directory "$kak_opt_bundle_path/$val"
-            done
-            return 0
-        fi
-        for val in "$@"
+        [ $# != 0 ] || set -- *
+        for val
         do
             if is_loaded "$val"; then continue; fi
             if [ -e "$kak_opt_bundle_path/$val" ]; then
