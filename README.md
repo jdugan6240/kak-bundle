@@ -21,7 +21,7 @@ This isn't enough by itself, though &mdash; Kakoune needs to be told to load kak
 line to your kakrc:
 
 ```
-source %val{config}/bundle/plugins/kak-bundle/rc/kak-bundle.kak
+source "%val{config}/bundle/plugins/kak-bundle/rc/kak-bundle.kak"
 bundle https://codeberg.org/jdugan6240/kak-bundle
 ```
 
