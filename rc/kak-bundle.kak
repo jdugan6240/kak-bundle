@@ -142,8 +142,15 @@ EOF
     }
 }
 
-define-command bundle -params 1 -docstring "Tells kak-bundle to manage this plugin." %{
+define-command bundle -params 1..2 -docstring "Tells kak-bundle to manage this plugin." %{
     set-option -add global bundle_plugins %arg{1}
+
+    try %{
+        set-option -add global bundle_install_hooks %arg{2}
+        set-option -add global bundle_install_hooks "
+        "
+        set-option global bundle_do_install_hooks true
+    }
 }
 
 define-command bundle-run-install-hooks %{
@@ -159,7 +166,7 @@ define-command bundle-run-install-hooks %{
                 printf '%s\n' 'Running post-install hooks'
                 eval "$kak_opt_bundle_install_hooks"
                 printf '\n %s\n' 'Post-install hooks complete; press <ESC> to dismiss'
-              } > "$output") > /dev/null 2>&1 < /dev/null &
+              } > "$output" 2>&1 & ) > /dev/null 2>&1 < /dev/null
             printf '%s\n' \
                 "edit! -fifo ${output} -scroll *bundle-install-hooks*" \
                 'map buffer normal <esc> %{: delete-buffer *bundle-install-hooks*<ret>}' \

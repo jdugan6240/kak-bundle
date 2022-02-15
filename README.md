@@ -44,6 +44,17 @@ leading to the repository of the desired plugin. For example, for [kak-lsp](http
 bundle https://github.com/kak-lsp/kak-lsp
 ```
 
+Some plugins require additional processing after install. For those plugins, the `bundle` command can optionally accept
+a second argument representing shell code to be run after the install takes place. An example of this configuration
+with `kak-lsp`:
+
+```
+bundle https://github.com/kak-lsp/kak-lsp %{
+  cd ~/.config/kak/bundle/plugins/kak-lsp
+  cargo install --locked --force --path .
+}
+```
+
 However, this by itself will not load the plugin, unless `bundle_path` is set to a location in your autoload. To actually
 load the installed plugins, the `bundle-load` command must be called. With no arguments it will load all registered plugins:
 
@@ -104,25 +115,6 @@ bundle-register-and-load \
 ```
 
 This can be more convenient and maintainable than performing the steps separately. There can be any number of `register-and-load` calls, each with one or more plugin arguments. Passing multiple `plugin+config` pairs speeds up loading, as each `register-and-load` translates into a single shell invocation.
-
-### Running post-install hooks
-
-Some plugins require additional processing after being installed (or updated for that matter) &mdash; say, a compilation step. A notable example of a plugin like this
-is [kak-lsp](https://github.com/kak-lsp/kak-lsp). **kak-bundle** offers support for this in the `bundle_do_install_hooks` and
-`bundle_install_hooks` options. Setting `bundle_do_install_hooks` to `true` enables running shell code after the `bundle-install` or
-`bundle-update` commands are completed. This shell code is defined with the `bundle_install_hooks` option. For example, the below
-configuration sets the post-install hooks to compile `kak-lsp` after the install/update is complete: 
-
-```
-set-option global bundle_do_install_hooks true
-set-option global bundle_install_hooks %{
-  cd ~/.config/kak/bundle/plugins/kak-lsp/
-  cargo install --locked --force --path .
-}
-```
-
-Once this is done, running `bundle-install` or `bundle-update` and exiting the buffer will spawn a new buffer with the output of the
-defined post-install hooks.
 
 ### Partial loading
 
