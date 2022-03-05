@@ -164,7 +164,7 @@ define-command bundle-run-install-hooks %{
             mkfifo "$output"
             ( {
                 printf '%s\n' 'Running post-install hooks'
-                eval "$kak_opt_bundle_install_hooks"
+                eval "$kak_opt_bundle_install_hooks" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
                 printf '\n %s\n' 'Post-install hooks complete; press <ESC> to dismiss'
               } > "$output" 2>&1 & ) > /dev/null 2>&1 < /dev/null
             printf '%s\n' \

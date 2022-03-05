@@ -50,7 +50,7 @@ with `kak-lsp`:
 
 ```
 bundle https://github.com/kak-lsp/kak-lsp %{
-  cd ~/.config/kak/bundle/plugins/kak-lsp
+  cd ${kak_opt_bundle_path}/kak-lsp
   cargo install --locked --force --path .
 }
 ```
