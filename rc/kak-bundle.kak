@@ -5,7 +5,6 @@ declare-option -docstring %{
     git shallow options (clone & update; defaults: --depth=1)
 } str bundle_git_shallow_opts '--depth=1'
 
-
 declare-option -docstring %{
     Print information messages
 } bool bundle_verbose false
@@ -30,6 +29,19 @@ declare-option -docstring %{
 declare-option -docstring %{
     Post-install hooks to be performed after install/update
 } str bundle_install_hooks %{}
+
+# since we want to add highlighters to kak filetype we need to require kak module
+# using `try' here since kakrc module may not be available in rare cases (such as using autoload without kakrc.kak script)
+try %@
+    require-module kak
+    try %$
+        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-load|bundle-pickyload|bundle-config|bundle)\s' 0:keyword
+    $ catch %$
+        echo -debug "Error: kak-bundle: can't declare highlighters for 'kak' filetype: %val{error}"
+    $
+@ catch %{
+    echo -debug "Error: kak-bundle: can't require 'kak' module to declare highlighters for kak-bundle. Check if kakrc.kak is available in your autoload."
+}
 
 declare-option -hidden str bundle_sh_code %{
     set -u; exec 3>&1 1>&2  # from here on, use 1>&3 to output to Kakoune
@@ -135,6 +147,7 @@ EOF
             if [ -e "$kak_opt_bundle_path/$val" ]; then
                 load_directory "$kak_opt_bundle_path/$val"
                 printf '%s\n' "set -add global bundle_loaded_plugins %<$val>" >&3
+                printf '%s\n' "try %{ trigger-user-hook bundle-loaded=$val }" >&3
             else
                 printf '%s\n' "bundle: ignoring missing plugin <$val>"
             fi
@@ -142,7 +155,7 @@ EOF
     }
 }
 
-define-command bundle -params 1..2 -docstring "Tells kak-bundle to manage this plugin." %{
+define-command bundle -params 1..2 -docstring "Tells kak-bundle to manage this plugin." %{ 
     set-option -add global bundle_plugins %arg{1}
 
     try %{
@@ -151,6 +164,10 @@ define-command bundle -params 1..2 -docstring "Tells kak-bundle to manage this p
         "
         set-option global bundle_do_install_hooks true
     }
+}
+
+define-command bundle-config -params 2 -docstring "Tells kak-bundle to perform commands when plugin is loaded." %{
+    try %{ hook global -group cork-loaded User "bundle-loaded=%arg{1}" %arg{2} }
 }
 
 define-command bundle-run-install-hooks %{
@@ -164,7 +181,7 @@ define-command bundle-run-install-hooks %{
             mkfifo "$output"
             ( {
                 printf '%s\n' 'Running post-install hooks'
-                eval "$kak_opt_bundle_install_hooks" # "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
+                eval "$kak_opt_bundle_install_hooks" # "$kak_config" "$kak_command_fifo" "$kak_response_fifo" "$kak_opt_bundle_verbose" "$kak_opt_bundle_path" "$kak_opt_bundle_parallel" "$kak_quoted_opt_bundle_loaded_plugins"
                 printf '\n %s\n' 'Post-install hooks complete; press <ESC> to dismiss'
               } > "$output" 2>&1 & ) > /dev/null 2>&1 < /dev/null
             printf '%s\n' \

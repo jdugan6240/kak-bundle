@@ -1,7 +1,7 @@
 # kak-bundle
 
 **kak-bundle** is a plugin manager for Kakoune designed for speed without sacrificing utility. It can install and
-update plugins, and optionally manage loading individual plugins for testing purposes.
+update plugins, and optionally manage loading individual plugins and scripts for testing purposes.
 
 ![bundle-status](/img/install.jpg)
 
@@ -55,7 +55,22 @@ bundle https://github.com/kak-lsp/kak-lsp %{
 }
 ```
 
-However, this by itself will not load the plugin, unless `bundle_path` is set to a location in your autoload. To actually
+`kak-bundle` can also be told to run configuration commands when a given plugin is loaded. This is done with the `bundle-config`
+command. This can be useful to prevent errors in your kakrc if a plugin isn't yet installed. An example of this with `kak-lsp` is as follows:
+
+```
+bundle-config kak-lsp %{
+  lsp-inlay-diagnostics-enable
+  set global lsp_diagnostic_line_error_sign '║'
+  set global lsp_diagnostic_line_warning_sign '┊'
+  
+  hook global KakEnd .* lsp-exit
+}
+```
+
+Note that we don't pass the URL of the plugin here, but rather the plugin name directly.
+
+However, none of this by itself will not load the plugin, unless `bundle_path` is set to a location in your autoload. To actually
 load the installed plugins, the `bundle-load` command must be called. With no arguments it will load all registered plugins:
 
 ```
@@ -74,7 +89,8 @@ Kakoune.
 
 After this is done, the registered plugins can be installed with the `bundle-install` command.
 
-Plugins may receive updates after being installed. Use the `bundle-update` command to update all installed plugins, or pass specific plugin folders (under `bundle_path`) as arguments to update selectively
+Plugins may receive updates after being installed. Use the `bundle-update` command to update all installed plugins, or
+pass specific plugin folders (under `bundle_path`) as arguments to update selectively:
 ```
 bundle-update                        # update all plugins
 bundle-update kak-lsp kakoune-extra  # update individual plugins
@@ -84,7 +100,9 @@ bundle-update kak-lsp kakoune-extra  # update individual plugins
 
 ### Installers
 
-In addition to simple URLs, the `bundle` command takes full shell commands ("installers") as an argument (recognized as such if they contain space characters). The installers will run from `bundle_path`. Each installer **must** create a directory with a name that exactly matches the substring after the **last "`/`" in the installer command**; this is important for `bundle-install` and `bundle-register-and-load` (to be introduced below).
+In addition to simple URLs, the `bundle` command takes full shell commands ("installers") as an argument (recognized as such if they contain space characters).
+The installers will run from `bundle_path`. Each installer **must** create a directory with a name that exactly matches the substring after the **last "`/`"
+in the installer command**; this is important for `bundle-install`, `bundle-config`, and `bundle-register-and-load` (to be introduced below).
 
 Installers can be useful for a number of things:
 ```
@@ -114,7 +132,9 @@ bundle-register-and-load \
   # etc; keep it in one long command
 ```
 
-This can be more convenient and maintainable than performing the steps separately. There can be any number of `register-and-load` calls, each with one or more plugin arguments. Passing multiple `plugin+config` pairs speeds up loading, as each `register-and-load` translates into a single shell invocation.
+This can be more convenient and maintainable than performing the steps separately, although post-install hooks aren't currently supported with
+this approach. There can be any number of `register-and-load` calls, each with one or more plugin arguments. Passing multiple `plugin+config` pairs
+speeds up loading, as each `register-and-load` translates into a single shell invocation.
 
 ### Partial loading
 
@@ -129,7 +149,9 @@ The above command assumes the desired script is in the top level directory of th
 the rc/ directory, however, in which case you can do something like the following ([powerline.kak](https://github.com/andreyorst/powerline.kak)):
 
 ```
-bundle-pickyload powerline.kak/rc/powerline.kak powerline.kak/rc/themes/gruvbox.kak powerline.kak/rc/modules/bufname.kak
+bundle-pickyload powerline.kak/rc/powerline.kak \
+                 powerline.kak/rc/themes/gruvbox.kak \
+                 powerline.kak/rc/modules/bufname.kak
 ```
 
 ## **kak-bundle** Configuration
@@ -153,7 +175,7 @@ command supports. More details on how this addon works can be found in its repos
 
 ## Performance
 
-**kak-bundle** was designed for speed from the start, which translates to extremely fast load times. For reference, here's some performance
+**kak-bundle** was designed for speed from the start, which translates to extremely fast load times. For reference, here's some (old) performance
 statistics comparing the performance of **kak-bundle** with the `kak-bundle-plug` addon to that of `plug.kak`'s `plug-chain` command (courtesy of
 Alin Mr. (https://codeberg.org/almr)):
 
@@ -170,8 +192,8 @@ In certain cases, running `bundle-update` will fail to update certain plugins. T
 - The author of the plugin force-pushes to their repository, rewriting history in the process.
 
 In this case, running `bundle-force-update <plugin_name>`, where `<plugin_name>` is the name of the plugin causing issues,
-and then running `bundle-update` will force an update to the plugin. However, this will overwrite any local changes made to
-the plugin that haven't been committed to the plugin's remote repository. For example, with kak-lsp, this would be
+and then running `bundle-update` will force the repository to reset, allowing an update. However, this will overwrite any
+local changes made to the plugin that haven't been committed to the plugin's remote repository. For example, with kak-lsp, this would be
 `bundle-force-update kak-lsp` and `bundle-update`.
 
 ## License
