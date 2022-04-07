@@ -167,7 +167,7 @@ define-command bundle -params 1..2 -docstring "Tells kak-bundle to manage this p
 }
 
 define-command bundle-config -params 2 -docstring "Tells kak-bundle to perform commands when plugin is loaded." %{
-    try %{ hook global -group cork-loaded User "bundle-loaded=%arg{1}" %arg{2} }
+    try %{ hook global -group bundle-loaded User "bundle-loaded=%arg{1}" %arg{2} }
 }
 
 define-command bundle-run-install-hooks %{
