@@ -21,17 +21,11 @@ setup_load_file() { # Create the plugin load file
     name=$1
     folder="$kak_opt_bundle_path/$name"
 
-    # Only create load file if plugin isn't kak-bundle
-    if [ "$name" != "kak-bundle" ];
-    then
-		# Be careful not to load colorschemes
-		# We don't want them being loaded prematurely
-        find -L "$folder" -type f -name '*\.kak' ! -path "$folder/colors/*" \
-        | sed 's/.*/source "&"/' \
-        > "$kak_opt_bundle_path/$name-load.kak"
-    else
-        printf "# This is the kak-bundle load file. Therefore it is empty.\n" > "$kak_opt_bundle_path/$name-load.kak"
-    fi
+	# Be careful not to load colorschemes
+	# We don't want them being loaded prematurely
+    find -L "$folder" -type f -name '*\.kak' ! -path "$folder/colors/*" \
+    | sed 's/.*/source "&"/' \
+    > "$kak_opt_bundle_path/$name-load.kak"
 }
 
 bundle_install() { # Perform the install

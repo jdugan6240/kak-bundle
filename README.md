@@ -20,7 +20,7 @@ line to your kakrc:
 
 ```
 source "%val{config}/bundle/plugins/kak-bundle/rc/kak-bundle.kak"
-bundle kak-bundle https://codeberg.org/jdugan6240/kak-bundle
+bundle-noload kak-bundle https://codeberg.org/jdugan6240/kak-bundle
 ```
 
 Alternatively, the need to load kak-bundle manually can be avoided by placing the kak-bundle repo in your autoload:
@@ -68,6 +68,31 @@ bundle my-plugin 'ln -sf ~/src/my-plugin'
 # external plugins load normally, but bundle-update will ignore them
 ```
 As with URLs, the name of the repository/directory must match the plugin name specified in the first argument.
+
+Sometimes, it is not desirable to load every script a plugin has to offer, or they need to be loaded in a specific order.
+For this use case, kak-bundle allows for specifying custom loading logic for a plugin with the `bundle-customload` command.
+An example of this for [kakoune-extra](https://github.com/lenormf/kakoune-extra):
+```
+bundle-customload kakoune-extra https://github.com/lenormf/kakoune-extra %{
+  # Custom loading logic here...
+  source "%opt{bundle_path}/kakoune-extra/fzf.kak"
+  source "%opt{bundle_path}/kakoune_extra/tldr.kak"
+  source "%opt{bundle_path}/kakoune_extra/utils.kak"
+
+  # Configuration goes here too...
+} %{
+  # Post-install code here...
+}
+```
+In this case, three arguments are required - the plugin name, the installer, and the code block containing the custom
+loading logic. The fourth argument is optional, and would contain shell code to run a compilation step or similar.
+
+Finally, kak-bundle provides a command, `bundle-noload`, to register a plugin without loading it. This is useful, for example,
+for testing how plugins behave when other plugins aren't loaded. An example:
+```
+bundle-noload kak-lsp https://github.com/kak-lsp/kak-lsp.git
+```
+As before, the installer specified in the second argument must match the plugin name specified in the first argument.
 
 Once these commands are written in your kakrc for the first time, the kakrc must be re-sourced to inform **kak-bundle**
 about the registered plugins. To avoid collisions with redefining existing commands/options, this is best done by restarting
