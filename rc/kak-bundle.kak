@@ -21,13 +21,25 @@ declare-option -hidden str bundle_sh_code %{
         find -L "$folder" -type f -name '*\.kak' | sed 's/.*/source "&"/' > "$kak_opt_bundle_path/$name-load.kak"
         echo "trigger-user-hook bundle-loaded=$name" >> "$kak_opt_bundle_path/$name-load.kak"
     }
+
+    post_install_hooks() { # Run post-install hooks of given plugins
+        for plugin; do
+            if [ -f "$kak_opt_bundle_path/$plugin-install-hooks" ]; then
+                cd "$kak_opt_bundle_path/$plugin"
+                eval $(cat "$kak_opt_bundle_path/$plugin-install-hooks")
+                cd "$kak_opt_bundle_path"
+            else
+                echo "No plugin install hooks for $plugin"
+            fi
+        done
+    }
 }
 
 # Highlighters
 
 hook global WinSetOption filetype=kak %{
     try %{
-        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-customload|bundle-noload|bundle)\s' 0:keyword
+        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-update|bundle-customload|bundle-noload|bundle)\s' 0:keyword
     } catch %{
         echo -debug "Error: kak-bundle: can't declare highlighters for 'kak' filetype: %val{error}"
     }
@@ -66,7 +78,7 @@ define-command bundle-customload -params 3..4 -docstring %{
     }
 }
 
-define-command bundle-noload -params 2 -docstring %{
+define-command bundle-noload -params 2..4 -docstring %{
     bundle-noload <plugin-name> <installer> - Register plugin without loading 
 } %{
     set-option -add global bundle_plugins %arg{1}
@@ -80,23 +92,22 @@ define-command bundle-noload -params 2 -docstring %{
 }
 
 define-command bundle-clean -docstring %{
-    bundle-clean - Uninstall all plugins
+    bundle-clean [plugins] - Uninstall selected plugins (or all registered plugins if none selected)
 } %{
     evaluate-commands %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_path"
-        rm -rf "$kak_opt_bundle_path"
-        mkdir -p "$kak_opt_bundle_path"
+        [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
+        for plugin; do rm -rf "$kak_opt_bundle_path/$plugin"; done
     }
+}
+complete-command -menu bundle-clean shell-script-candidates %{
+    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 }
 
 define-command bundle-install -params .. -docstring %{
     bundle-install [plugins] - Install selected plugins (or all registered plugins if none selected)
 } %{
     evaluate-commands %sh{
-        # "$kak_opt_bundle_path"
-        # "$kak_opt_bundle_plugins"
-        # "$kak_config"
-        eval "$kak_opt_bundle_sh_code"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_path" "$kak_config"
         bundle_cd
         [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
 
@@ -109,33 +120,65 @@ define-command bundle-install -params .. -docstring %{
             for plugin; do
                 installer=$(cat $plugin-installer)
                 rm -Rf "$plugin"
+                echo "Installing $plugin..."
                 case "$installer" in
                     (*' '*) eval "$installer" ;;
                     (*) git clone $kak_opt_bundle_git_clone_opts $kak_opt_bundle_git_shallow_opts "$installer" ;;
                 esac
+                echo ""
                 setup_load_file $plugin
             done
             # Run post-install hooks
             printf "\nRunning post-install hooks...\n\n"
-            for plugin; do
-                if [ -f "$plugin-install-hooks" ]; then
-                    cd "$plugin"
-                    eval $(cat "../$plugin-install-hooks")
-                    cd "$kak_opt_bundle_path"
-                else
-                    echo "No plugin install hooks for $plugin"
-                fi
-            done
+            post_install_hooks $@
             printf "\nDone. Press <esc> to exit.\n"
         } > "$output" 2>&1 & ) > /dev/null 2>&1 < /dev/null
         printf '%s\n' \
-                "edit! -fifo ${output} -scroll *bundle-install*" \
-                "map buffer normal <esc> %{: delete-buffer *bundle-install*<ret>}" \
+                "edit! -fifo ${output} -scroll *bundle*" \
+                "map buffer normal <esc> %{: delete-buffer *bundle*<ret>}" \
                 "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
     }
 }
 complete-command -menu bundle-install shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do
-       echo $plugin
-    done
+    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
+}
+
+define-command bundle-update -params .. -docstring %{
+    bundle-install [plugins] - Update selected plugins (or all registered plugins if none selected)
+} %{
+    evaluate-commands %sh{
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_path" "$kak_config"
+        bundle_cd
+        [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
+
+        # Setup fifo
+        fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
+        output=$fifo_tmp_dir/fifo
+        mkfifo "$output"
+        ( {
+            # Update the plugins
+            for plugin; do
+                dir="$kak_opt_bundle_path/$plugin"
+                [ -e "$dir" ] || continue
+                # Ignore symlinked plugins
+                if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
+                   echo "Updating $plugin..."
+                   git pull $kak_opt_bundle_git_shallow_opts
+                   echo ""
+                fi
+                setup_load_file $plugin
+            done
+            # Run post-install hooks
+            printf "\nRunning post-install hooks...\n\n"
+            post_install_hooks $@
+            printf "\nDone. Press <esc> to exit.\n"
+        } > "$output" 2>&1 & ) > /dev/null 2>&1 < /dev/null
+        printf '%s\n' \
+                "edit! -fifo ${output} -scroll *bundle*" \
+                "map buffer normal <esc> %{: delete-buffer *bundle*<ret>}" \
+                "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
+    }
+}
+complete-command -menu bundle-update shell-script-candidates %{
+    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 }

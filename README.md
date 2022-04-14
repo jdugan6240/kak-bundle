@@ -42,7 +42,6 @@ bundle kak-lsp https://github.com/kak-lsp/kak-lsp %{
   hook global KakEnd .* lsp-exit
 } %{
   # Post-install code here...
-  cd ${kak_opt_bundle_path}/kak-lsp
   cargo install --locked --force --path .
 }
 ```
@@ -90,7 +89,12 @@ loading logic. The fourth argument is optional, and would contain shell code to 
 Finally, kak-bundle provides a command, `bundle-noload`, to register a plugin without loading it. This is useful, for example,
 for testing how plugins behave when other plugins aren't loaded. An example:
 ```
-bundle-noload kak-lsp https://github.com/kak-lsp/kak-lsp.git
+bundle-noload kak-lsp https://github.com/kak-lsp/kak-lsp.git %{
+  # This configuration code isn't run on startup...
+} %{
+  # Post-install code here...
+  cargo install --locked --force --path .
+}
 ```
 As before, the installer specified in the second argument must match the plugin name specified in the first argument.
 
@@ -98,11 +102,12 @@ Once these commands are written in your kakrc for the first time, the kakrc must
 about the registered plugins. To avoid collisions with redefining existing commands/options, this is best done by restarting
 Kakoune.
 
-After this is done, the registered plugins can be installed with the `bundle-install` command, and all installed plugins
-can be uninstalled with the `bundle-clean` command.
+After this is done, the registered plugins can be installed with the `bundle-install` command, and installed plugins
+can be uninstalled with the `bundle-clean` command. `bundle-install` and `bundle-clean` can also accept individual
+plugins as arguments to install/uninstall selectively.
 
 Plugins may receive updates after being installed. Use the `bundle-update` command to update all installed plugins, or
-pass specific plugin folders (under `bundle_path`) as arguments to update selectively:
+pass specific plugins as arguments to update selectively:
 ```
 bundle-update                        # update all plugins
 bundle-update kak-lsp kakoune-extra  # update individual plugins
@@ -112,19 +117,41 @@ bundle-update kak-lsp kakoune-extra  # update individual plugins
 
 ### Colorschemes
 
-`kak-bundle` doesn't support colorschemes by default, but they're pretty easy to add support for by running post-install code.
-Take this example for [one.kak](https://github.com/raiguard/one.kak):
+`kak-bundle` doesn't support colorschemes by default, but they're pretty easy to support by running post-install code. Take
+this example for [one.kak](https://github.com/raiguard/one.kak):
 
 ```
-bundle one.kak https://github.com/raiguard/one.kak %{
-  # Configure here...
-  colorscheme one-dark
+bundle-noload one.kak https://github.com/raiguard/one.kak %{
 } %{
   # Post-install code here...
   mkdir -p ${kak_config}/colors
   ln -sf "${kak_opt_bundle_path}/one.kak" "${kak_config}/colors/"
 }
+# Later on...
+colorscheme one-dark
 ```
+
+The `bundle-noload` command is necessary in this case, as otherwise the colorscheme would be loaded immediately, which may
+conflict with other installed colorschemes.
+
+### Bootstrap kak-bundle
+
+The process of installing and loading `kak-bundle` can be automated, at a slight load time cost, by adding the following to
+the top of your kakrc:
+
+```
+evaluate-commands %sh{
+  # We're assuming the default bundle_path here...
+  plugins="$kak_config/bundle"
+  mkdir -p "$plugins"
+  [ ! -e "$plugins/kak-bundle" ] && \
+    git clone -q https://codeberg.org/jdugan6240/kak-bundle "$plugins/kak-bundle"
+  printf "%s\n" "source '$plugins/kak-bundle/rc/kak-bundle.kak'"
+}
+bundle-noload kak-bundle https://codeberg.org/jdugan6240/kak-bundle
+```
+
+This will create the needed directories on Kakoune launch, and download `kak-bundle` if not installed already.
 
 ## **kak-bundle** Configuration
 
