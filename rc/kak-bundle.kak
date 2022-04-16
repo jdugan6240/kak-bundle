@@ -5,6 +5,17 @@ declare-option -docstring %{
     git shallow options (clone & update; defaults: --depth=1)
 } str bundle_git_shallow_opts '--depth=1'
 
+# There's unfortunately not an easy way to create a dictionary that
+# contains strings with spaces in POSIX shell. So, essentially what
+# we do here is define strings that consist of 🦀 delimited values,
+# and have each value follow its key in the list. It's not pretty by
+# any means, and requires some nontrivial shell gymnastics, but it works.
+# This will obviously break if one of the values contains a 🦀, but it's
+# a small price to pay for not requiring bundle-clean to leave behind
+# a bunch of installer and post-install-hook files to avoid breaking bundle-install.
+declare-option -hidden str bundle_install_hooks
+declare-option -hidden str bundle_installers
+
 declare-option -hidden str-list bundle_plugins
 declare-option -hidden str bundle_path "%val{config}/bundle"
 
@@ -22,11 +33,46 @@ declare-option -hidden str bundle_sh_code %{
         echo "trigger-user-hook bundle-loaded=$name" >> "$kak_opt_bundle_path/$name-load.kak"
     }
 
+    get_dict_value() { # Retrieves either the installer or post-install hook for a given plugin
+        dict=
+        case $2 in
+            0) dict=$kak_opt_bundle_installers ;; # We're grabbing an installer
+            *) dict=$kak_opt_bundle_install_hooks ;; # We're grabbing a post-install hook
+        esac
+        IFS='🦀'
+        found=0
+        returned_val=''
+        for val in $dict; do
+            # If we haven't yet found the key
+            if [ $found -eq 0 ]; then
+                if [ "$val" = "$1" ]; then found=1; fi
+            # We found the key, the next non-blank value is the mapped value
+            elif ! [ -z "$val" ]; then
+                # Ensure the value isn't another key
+                # If it is, then the value mapped to our key is blank and we skipped over it earlier
+                IFS=' '
+                is_key=0
+                for key in $kak_opt_bundle_plugins; do
+                    if [ "$val" = "$key" ]; then
+                        is_key=1
+                        break
+                    fi
+                done
+                if [ $is_key -eq 0 ]; then returned_val=$val; fi
+                break
+            fi
+        done
+        # Whatever the returned value is, print it out
+        echo "$returned_val"
+    }
+
     post_install_hooks() { # Run post-install hooks of given plugins
         for plugin; do
-            if [ -f "$kak_opt_bundle_path/$plugin-install-hooks" ]; then
+            hook=$(get_dict_value $plugin 1)
+            if ! [ -z "$hook" ]; then
+                echo "Running plugin install hook for $plugin"
                 cd "$kak_opt_bundle_path/$plugin"
-                eval $(cat "$kak_opt_bundle_path/$plugin-install-hooks")
+                eval $hook
                 cd "$kak_opt_bundle_path"
             else
                 echo "No plugin install hooks for $plugin"
@@ -45,13 +91,28 @@ hook global WinSetOption filetype=kak %{
     }
 }
 
+# Internal commands
+
+define-command -hidden bundle-add-installer -params 2 %{
+    set-option -add global bundle_installers %arg{1}
+    set-option -add global bundle_installers 🦀
+    set-option -add global bundle_installers %arg{2}
+    set-option -add global bundle_installers 🦀
+}
+define-command -hidden bundle-add-install-hook -params 2 %{
+    set-option -add global bundle_install_hooks %arg{1}
+    set-option -add global bundle_install_hooks 🦀
+    set-option -add global bundle_install_hooks %arg{2}
+    set-option -add global bundle_install_hooks 🦀
+}
+
 # Commands
 
 define-command bundle -params 2..4 -docstring %{
     bundle <plugin-name> <installer> [config] [post-install code] - Register and load plugin
 } %{
     set-option -add global bundle_plugins %arg{1}
-    echo -to-file "%opt{bundle_path}/%arg{1}-installer" %arg{2}
+    bundle-add-installer %arg{1} %arg{2}
     try %{
         hook global -group bundle-loaded User "bundle-loaded=%arg{1}" %arg{3}
     }
@@ -59,7 +120,7 @@ define-command bundle -params 2..4 -docstring %{
         source "%opt{bundle_path}/%arg{1}-load.kak"
     }
     try %{
-        echo -to-file "%opt{bundle_path}/%arg{1}-install-hooks" %arg{4}
+        bundle-add-install-hook %arg{1} %arg{4}
     }
 }
 
@@ -67,14 +128,12 @@ define-command bundle-customload -params 3..4 -docstring %{
     bundle-customload <plugin-name> <installer> <loading-code> [post-install code] - Register and load plugin with custom loading logic
 } %{
     set-option -add global bundle_plugins %arg{1}
-    echo -to-file "%opt{bundle_path}/%arg{1}-installer" %arg{2}
+    bundle-add-installer %arg{1} %arg{2}
     try %{
         evaluate-commands %arg{3}
-    } catch %{
-        echo -debug %val{error}
     }
     try %{
-        echo -to-file "%opt{bundle_path}/%arg{1}-install-hooks" %arg{4}
+        bundle-add-install-hook %arg{1} %arg{4}
     }
 }
 
@@ -82,34 +141,37 @@ define-command bundle-noload -params 2..4 -docstring %{
     bundle-noload <plugin-name> <installer> - Register plugin without loading 
 } %{
     set-option -add global bundle_plugins %arg{1}
-    echo -to-file "%opt{bundle_path}/%arg{1}-installer" %arg{2}
+    bundle-add-installer %arg{1} %arg{2}
     try %{
         hook global -group bundle-loaded User "bundle-loaded=%arg{1}" %arg{3}
     }
     try %{
-        echo -to-file "%opt{bundle_path}/%arg{1}-install-hooks" %arg{4}
+        bundle-add-install-hook %arg{1} %arg{4}
     }
 }
 
-define-command bundle-clean -docstring %{
+define-command bundle-clean -params .. -docstring %{
     bundle-clean [plugins] - Uninstall selected plugins (or all registered plugins if none selected)
+} -shell-script-candidates %{
+    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 } %{
     evaluate-commands %sh{
         [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
-        for plugin; do rm -rf "$kak_opt_bundle_path/$plugin"; done
+        for plugin; do
+            rm -rf "$kak_opt_bundle_path/$plugin" "$kak_opt_bundle_path/$plugin-load.kak"
+        done
     }
-}
-complete-command -menu bundle-clean shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 }
 
 define-command bundle-install -params .. -docstring %{
     bundle-install [plugins] - Install selected plugins (or all registered plugins if none selected)
+} -shell-script-candidates %{
+    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 } %{
     evaluate-commands %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_path" "$kak_config"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_installers" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config"
         bundle_cd
-        [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
+        [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
 
         # Setup fifo
         fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
@@ -118,7 +180,7 @@ define-command bundle-install -params .. -docstring %{
         ( {
             # Install the plugins
             for plugin; do
-                installer=$(cat $plugin-installer)
+                installer=$(get_dict_value $plugin 0)
                 rm -Rf "$plugin"
                 echo "Installing $plugin..."
                 case "$installer" in
@@ -129,27 +191,26 @@ define-command bundle-install -params .. -docstring %{
                 setup_load_file $plugin
             done
             # Run post-install hooks
-            printf "\nRunning post-install hooks...\n\n"
+            echo "\nRunning post-install hooks...\n"
             post_install_hooks $@
-            printf "\nDone. Press <esc> to exit.\n"
-        } > "$output" 2>&1 & ) > /dev/null 2>&1 < /dev/null
+            echo "\nDone. Press <esc> to exit."
+        } > "$output" 2>&1 & ) > /dev/null 2>&1
         printf '%s\n' \
                 "edit! -fifo ${output} -scroll *bundle*" \
                 "map buffer normal <esc> %{: delete-buffer *bundle*<ret>}" \
                 "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
     }
 }
-complete-command -menu bundle-install shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
-}
 
 define-command bundle-update -params .. -docstring %{
     bundle-install [plugins] - Update selected plugins (or all registered plugins if none selected)
+} -shell-script-candidates %{
+    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 } %{
     evaluate-commands %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_path" "$kak_config"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config"
         bundle_cd
-        [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
+        [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
 
         # Setup fifo
         fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
@@ -169,16 +230,13 @@ define-command bundle-update -params .. -docstring %{
                 setup_load_file $plugin
             done
             # Run post-install hooks
-            printf "\nRunning post-install hooks...\n\n"
+            echo "\nRunning post-install hooks...\n"
             post_install_hooks $@
-            printf "\nDone. Press <esc> to exit.\n"
-        } > "$output" 2>&1 & ) > /dev/null 2>&1 < /dev/null
+            echo "\nDone. Press <esc> to exit."
+        } > "$output" 2>&1 & ) > /dev/null 2>&1
         printf '%s\n' \
                 "edit! -fifo ${output} -scroll *bundle*" \
                 "map buffer normal <esc> %{: delete-buffer *bundle*<ret>}" \
                 "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
     }
-}
-complete-command -menu bundle-update shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 }
