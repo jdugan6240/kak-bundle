@@ -72,7 +72,7 @@ declare-option -hidden str bundle_sh_code %{
             if ! [ -z "$hook" ]; then
                 echo "Running plugin install hook for $plugin"
                 cd "$kak_opt_bundle_path/$plugin"
-                eval $hook
+                eval "$hook"
                 cd "$kak_opt_bundle_path"
             else
                 echo "No plugin install hooks for $plugin"
