@@ -4,6 +4,9 @@ declare-option -docstring %{
 declare-option -docstring %{
     git shallow options (clone & update; defaults: --depth=1)
 } str bundle_git_shallow_opts '--depth=1'
+declare-option -docstring %{
+    Maximum install & update jobs to run in parallel
+} int bundle_parallel 4
 
 # There's unfortunately not an easy way to create a dictionary that
 # contains strings with spaces in POSIX shell. So, essentially what
@@ -20,6 +23,7 @@ declare-option -hidden str-list bundle_plugins
 declare-option -hidden str bundle_path "%val{config}/bundle"
 
 declare-option -hidden str bundle_sh_code %{
+    set -u; 
     bundle_cd() { # cd to bundle-path; create if missing
         [ -d "$kak_opt_bundle_path" ] || mkdir -p "$kak_opt_bundle_path"
         cd "$kak_opt_bundle_path"
@@ -64,6 +68,39 @@ declare-option -hidden str bundle_sh_code %{
         done
         # Whatever the returned value is, print it out
         echo "$returned_val"
+    }
+
+    tmp_dir= tmp_file= tmp_cnt=0
+    bundle_tmp_new() { # Creates temporary filename
+        # Create temp dir if it doesn't exist
+        if [ -z "$tmp_dir" ]; then
+            tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle.$$.XXXXXX)
+            > "$tmp_dir"/.rmme  # safeguard
+        fi
+        # Create temp filename
+        tmp_cnt=$(( tmp_cnt + 1 ))
+        tmp_file=$tmp_dir/bundle-"$tmp_cnt.${1:-tmp}"
+    }
+
+    bundle_tmp_clean() { # Remove temp dir
+        rm -r $tmp_dir
+    }
+
+    vvc() { # Run commands in parallel
+        bundle_tmp_new job
+        (
+            # Print command to be run (so we can easily tell which output came from what command)
+            echo "## in <$(pwd)>: $@"  > $tmp_file.running 2>&1
+            # Redirect stdout of command to file
+            eval "$@" >> $tmp_file.running 2>&1
+            # Only after command finishes do we show the output
+            # This makes sure we don't mangle output of different processes
+            cat $tmp_file.running
+            rm $tmp_file.running
+        ) &
+        set -- /tmp/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
+        # If too many jobs are running, wait
+        if [ $# -ge $kak_opt_bundle_parallel ]; then wait $!; fi
     }
 
     post_install_hooks() { # Run post-install hooks of given plugins
@@ -169,7 +206,7 @@ define-command bundle-install -params .. -docstring %{
     for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 } %{
     evaluate-commands %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_installers" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_installers" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config" "$kak_opt_bundle_parallel"
         bundle_cd
         [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
 
@@ -178,16 +215,21 @@ define-command bundle-install -params .. -docstring %{
         output=$fifo_tmp_dir/fifo
         mkfifo "$output"
         ( {
+            printf "Installing...\n\n"
             # Install the plugins
             for plugin; do
                 installer=$(get_dict_value $plugin 0)
                 rm -Rf "$plugin"
-                echo "Installing $plugin..."
                 case "$installer" in
-                    (*' '*) eval "$installer" ;;
-                    (*) git clone $kak_opt_bundle_git_clone_opts $kak_opt_bundle_git_shallow_opts "$installer" ;;
+                    (*' '*) vvc eval "$installer" ;;
+                    (*) vvc git clone $kak_opt_bundle_git_clone_opts $kak_opt_bundle_git_shallow_opts "$installer" ;;
                 esac
-                echo ""
+            done
+            wait
+            # Clear temp directory
+            bundle_tmp_clean
+            # Setup load files
+            for plugin; do
                 setup_load_file $plugin
             done
             # Run post-install hooks
@@ -208,7 +250,7 @@ define-command bundle-update -params .. -docstring %{
     for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
 } %{
     evaluate-commands %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config"
+        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config" "$kak_opt_bundle_parallel"
         bundle_cd
         [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
 
@@ -217,16 +259,21 @@ define-command bundle-update -params .. -docstring %{
         output=$fifo_tmp_dir/fifo
         mkfifo "$output"
         ( {
+            printf "Updating...\n\n"
             # Update the plugins
             for plugin; do
                 dir="$kak_opt_bundle_path/$plugin"
                 [ -e "$dir" ] || continue
                 # Ignore symlinked plugins
                 if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
-                   echo "Updating $plugin..."
-                   git pull $kak_opt_bundle_git_shallow_opts
-                   echo ""
+                   vvc git pull $kak_opt_bundle_git_shallow_opts
                 fi
+            done
+            wait
+            # Clear temp directory
+            bundle_tmp_clean
+            # Setup load files
+            for plugin; do
                 setup_load_file $plugin
             done
             # Run post-install hooks

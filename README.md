@@ -158,6 +158,7 @@ This will create the needed directories on Kakoune launch, and download `kak-bun
 **kak-bundle** provides the following options that can be used to change how kak-bundle works:
 
 - `bundle_path` &mdash; This dictates the directory **kak-bundle** installs plugins to. This is `%val{config}/bundle` by default.
+- `bundle_parallel` &mdash; `4` by default, this determines how many parallel install/update jobs `bundle-install` and `bundle-update` can spawn; set to 1 to disable parallelism.
 - `bundle_git_clone_opts` &mdash; This determines the options `bundle-install` and `bundle-update` pass to the `git clone` command to install
 and update plugins. By default, this is `'--single-branch --no-tags'`.
 - `bundle_git_shallow_opts` &mdash; This determines the shallow clone options `bundle-install` and `bundle-update` pass to the `git clone` command
