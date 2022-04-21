@@ -88,6 +88,7 @@ declare-option -hidden str bundle_sh_code %{
 
     vvc() { # Run commands in parallel
         bundle_tmp_new job
+        > $tmp_file.running
         (
             # Print command to be run (so we can easily tell which output came from what command)
             echo "## in <$(pwd)>: $@"  > $tmp_file.running 2>&1
@@ -98,7 +99,7 @@ declare-option -hidden str bundle_sh_code %{
             cat $tmp_file.running
             rm $tmp_file.running
         ) &
-        set -- /tmp/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
+        set -- $tmp_dir/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
         # If too many jobs are running, wait
         if [ $# -ge $kak_opt_bundle_parallel ]; then wait $!; fi
     }
