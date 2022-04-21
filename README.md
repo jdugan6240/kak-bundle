@@ -50,7 +50,7 @@ matching the name of the plugin. The third and fourth parameters are optional, a
 is loaded, and a shell code block that runs after the plugin is installed, respectively (a compilation step, for example). Keep in mind that
 if the post-install shell block is defined, the configuration block must be defined as well.
 
-It may be desirable, however, in some scenarios to grab a plugin from a specific branch or filepath. For this, `kak-bundle`
+It may be desirable, however, in some scenarios to grab a plugin from a specific branch or filepath. For this, **kak-bundle**
 has the concept of "installers", or custom shell code that is run to create a directory in `bundle_path` containing the
 plugin code. These are run in the `bundle_path` directory. Installers allow for all sorts of options regarding plugin
 install. Some examples are shown below:
@@ -117,7 +117,7 @@ bundle-update kak-lsp kakoune-extra  # update individual plugins
 
 ### Colorschemes
 
-`kak-bundle` doesn't support colorschemes by default, but they're pretty easy to support by running post-install code. Take
+**kak-bundle** doesn't support colorschemes by default, but they're pretty easy to support by running post-install code. Take
 this example for [one.kak](https://github.com/raiguard/one.kak):
 
 ```
@@ -127,7 +127,7 @@ bundle-noload one.kak https://github.com/raiguard/one.kak %{
   mkdir -p ${kak_config}/colors
   ln -sf "${kak_opt_bundle_path}/one.kak" "${kak_config}/colors/"
 }
-# Later on...
+# Set the colorscheme later on in the kakrc...
 colorscheme one-dark
 ```
 
@@ -136,7 +136,7 @@ conflict with other installed colorschemes.
 
 ### Bootstrap kak-bundle
 
-The process of installing and loading `kak-bundle` can be automated, at a slight load time cost, by adding the following to
+The process of installing and loading **kak-bundle** can be automated, at a slight load time cost, by adding the following to
 the top of your kakrc:
 
 ```
@@ -151,7 +151,25 @@ evaluate-commands %sh{
 bundle-noload kak-bundle https://codeberg.org/jdugan6240/kak-bundle
 ```
 
-This will create the needed directories on Kakoune launch, and download `kak-bundle` if not installed already.
+This will create the needed directories on Kakoune launch, and download **kak-bundle** if not installed already.
+
+### Running `bundle-update` outside of Kakoune
+
+It can be desirable to update plugins outside of Kakoune - say, as part of a systemwide upgrade process. **kak-bundle**
+provides support for this in the form of its `bundle-after-install` hook, which is a user-defined hook that is triggered
+upon completion of `bundle-install` and `bundle-update`. Place the following in your kakrc:
+
+```
+hook global User bundle-after-install %{
+  # This is run after bundle-install or bundle-update completes.
+  # This could be for automatically deleting the *bundle* buffer, or some other similar action.
+  # In this case, we want to exit Kakoune, so we return to the command line.
+  quit!
+}
+```
+
+Then, run the following on the command line: `kak -e 'bundle-update'`. **kak-bundle** will update the plugins, and then trigger
+the hook, quitting Kakoune and returning you to the command line.
 
 ## **kak-bundle** Configuration
 
@@ -165,16 +183,16 @@ and update plugins. By default, this is `'--single-branch --no-tags'`.
 to install and update plugins. This is used to create shallow clones of the plugin repositories, which store less of the plugin's commit
 history, thus saving space and download time. By default, this is `'--depth=1'`.
 
+In addition, **kak-bundle** provides some user-defined hooks to further customize how **kak-bundle** works. None are defined by
+default. They are:
+
+- `bundle-after-install` &mdash; This is run immediately after `bundle-install` or `bundle-update` completes (including the post-install code defined for each plugin). Example: `hook global User bundle-after-install %{ try %{ delete-buffer *bundle* } }`
+
 ## Performance
 
-**kak-bundle** was designed for speed from the start, which translates to extremely fast load times. For reference, here's some (old) performance
-statistics comparing the performance of **kak-bundle** with the `kak-bundle-plug` addon to that of `plug.kak`'s `plug-chain` command (courtesy of
-Alin Mr. (https://codeberg.org/almr)):
+**kak-bundle** is designed for speed, and runs no shell code on startup. This makes its load time pretty close to optimal.
 
-| Command                                                                                         | Mean [ms]    | Min [ms] | Max [ms] |
-|-------------------------------------------------------------------------------------------------|--------------|----------|----------|
-| KAKOUNE_POSIX_SHELL=/bin/dash KAK_PLUG_CHAIN=plug-chain /opt/kak/bin/kak -ui dummy -e quit      | 282.1 +- 2.9 | 277.6    | 285.8    |
-| KAKOUNE_POSIX_SHELL=/bin/dash KAK_PLUG_CHAIN=kak-bundle-plug /opt/kak/bin/kak -ui dummy -e quit | 244.1 +- 2.6 | 240.1    | 247.5    |
+_TODO: Get benchmarks comparing **kak-bundle** to plug.kak and cork.kak, the main other plugin managers._
 
 ## License
 

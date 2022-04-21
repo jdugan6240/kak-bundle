@@ -237,6 +237,8 @@ define-command bundle-install -params .. -docstring %{
             echo "\nRunning post-install hooks...\n"
             post_install_hooks $@
             echo "\nDone. Press <esc> to exit."
+            # Try to run the user-defined after-install hook.
+            printf '%s\n' "evaluate-commands -client ${kak_client:-client0} %{ try %{ trigger-user-hook bundle-after-install } }" | kak -p "$kak_session"
         } > "$output" 2>&1 & ) > /dev/null 2>&1
         printf '%s\n' \
                 "edit! -fifo ${output} -scroll *bundle*" \
@@ -281,6 +283,8 @@ define-command bundle-update -params .. -docstring %{
             echo "\nRunning post-install hooks...\n"
             post_install_hooks $@
             echo "\nDone. Press <esc> to exit."
+            # Try to run the user-defined after-install hook.
+            printf '%s\n' "evaluate-commands -client ${kak_client:-client0} %{ try %{ trigger-user-hook bundle-after-install } }" | kak -p "$kak_session"
         } > "$output" 2>&1 & ) > /dev/null 2>&1
         printf '%s\n' \
                 "edit! -fifo ${output} -scroll *bundle*" \
