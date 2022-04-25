@@ -1,0 +1,49 @@
+source "%val{config}/benchmark/plug/plug.kak/rc/plug.kak"
+set-option global plug_install_dir "%val{config}/benchmark/plug"
+
+plug-chain "https://github.com/raiguard/harpoon.kak" config %{
+    harpoon-add-bindings
+} plug cork kak-ansi "https://github.com/eraserhd/kak-ansi" \
+plug "https://github.com/occivink/kakoune-buffer-switcher" config %{
+    face global BufferSwitcherCurrent green
+    map global normal <backspace> ": buffer-switcher<ret>"
+} plug "https://github.com/listentolist/kakoune-fandt" config %{
+    require-module fandt
+
+    hook global ModeChange push:.*:user.fandt %{
+        set-face window PrimarySelection ",rgba:%opt{lightorange}%opt{selectionalpha}"
+        set-face window PrimaryCursor ",rgba:%opt{lightorange}%opt{cursoralpha}"
+        set-face window SecondarySelection ",rgba:%opt{darkorange}%opt{selectionalpha}"
+        set-face window SecondaryCursor ",rgba:%opt{darkorange}%opt{cursoralpha}"
+    }
+
+    hook global ModeChange pop:user.fandt:.* %{
+        set-face window PrimarySelection ",rgba:%opt{blue}%opt{selectionalpha}"
+        set-face window PrimaryCursor ",rgba:%opt{blue}%opt{cursoralpha}"
+        set-face window SecondarySelection ",rgba:%opt{green}%opt{selectionalpha}"
+        set-face window SecondaryCursor ",rgba:%opt{green}%opt{cursoralpha}"
+    }
+} plug "https://github.com/caksoylar/kakoune-focus" config %{
+    map global user <space> ': focus-toggle<ret>' -docstring "toggle selections focus"
+} plug "https://github.com/occivink/kakoune-gdb" \
+plug "https://github.com/JacobTravers/kakoune-grep-write" config %{
+    hook global BufCreate \*grep\* %{
+        alias buffer w grep-write
+    }
+} plug "https://github.com/delapouite/kakoune-mirror" config %{
+    map global normal "'" ": enter-user-mode -lock mirror<ret>"
+} plug "https://github.com/natasky/kakoune-multi-file" \
+plug "https://github.com/caksoylar/kakoune-smooth-scroll" config %{
+    set-option -add global scroll_options max_duration=80
+    hook global WinDisplay .* %{
+        smooth-scroll-enable
+    }
+} plug "https://github.com/occivink/kakoune-sort-selections" \
+plug "https://gitlab.com/Screwtapello/kakoune-state-save" \
+plug "https://github.com/occivink/kakoune-sudo-write" \
+plug "https://github.com/delapouite/kakoune-text-objects" \
+plug "https://github.com/dgmulf/local-kakrc" config %{
+    set-option global source_local_kakrc true
+} plug "https://github.com/alexherbo2/mark.kak" \
+plug "https://github.com/raiguard/rainmeter.kak" \
+plug "https://github.com/andreyorst/smarttab.kak"

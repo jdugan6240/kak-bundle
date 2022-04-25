@@ -1,0 +1,76 @@
+evaluate-commands %sh{
+    cork init
+}
+set-option global cork_install_path "%val{config}/benchmark/cork"
+
+cork harpoon.kak "https://github.com/raiguard/harpoon.kak" %{
+    harpoon-add-bindings
+}
+
+cork kak-ansi "https://github.com/eraserhd/kak-ansi"
+
+cork kakoune-buffer-switcher "https://github.com/occivink/kakoune-buffer-switcher" %{
+    face global BufferSwitcherCurrent green
+    map global normal <backspace> ": buffer-switcher<ret>"
+}
+
+cork kakoune-fandt "https://github.com/listentolist/kakoune-fandt" %{
+    require-module fandt
+
+    hook global ModeChange push:.*:user.fandt %{
+        set-face window PrimarySelection ",rgba:%opt{lightorange}%opt{selectionalpha}"
+        set-face window PrimaryCursor ",rgba:%opt{lightorange}%opt{cursoralpha}"
+        set-face window SecondarySelection ",rgba:%opt{darkorange}%opt{selectionalpha}"
+        set-face window SecondaryCursor ",rgba:%opt{darkorange}%opt{cursoralpha}"
+    }
+
+    hook global ModeChange pop:user.fandt:.* %{
+        set-face window PrimarySelection ",rgba:%opt{blue}%opt{selectionalpha}"
+        set-face window PrimaryCursor ",rgba:%opt{blue}%opt{cursoralpha}"
+        set-face window SecondarySelection ",rgba:%opt{green}%opt{selectionalpha}"
+        set-face window SecondaryCursor ",rgba:%opt{green}%opt{cursoralpha}"
+    }
+}
+
+cork kakoune-focus "https://github.com/caksoylar/kakoune-focus" %{
+    map global user <space> ': focus-toggle<ret>' -docstring "toggle selections focus"
+}
+
+cork kakoune-gdb "https://github.com/occivink/kakoune-gdb"
+
+cork kakoune-grep-write "https://github.com/JacobTravers/kakoune-grep-write" %{
+    hook global BufCreate \*grep\* %{
+        alias buffer w grep-write
+    }
+}
+
+cork kakoune-mirror "https://github.com/delapouite/kakoune-mirror" %{
+    map global normal "'" ": enter-user-mode -lock mirror<ret>"
+}
+
+cork kakoune-multi-file "https://github.com/natasky/kakoune-multi-file" %{}
+
+cork kakoune-smooth-scroll "https://github.com/caksoylar/kakoune-smooth-scroll" %{
+    set-option -add global scroll_options max_duration=80
+    hook global WinDisplay .* %{
+        smooth-scroll-enable
+    }
+}
+
+cork kakoune-sort-selections "https://github.com/occivink/kakoune-sort-selections"
+
+cork kakoune-state-save "https://gitlab.com/Screwtapello/kakoune-state-save"
+
+cork kakoune-sudo-write "https://github.com/occivink/kakoune-sudo-write"
+
+cork kakoune-text-objects "https://github.com/delapouite/kakoune-text-objects"
+
+cork local-kakrc "https://github.com/dgmulf/local-kakrc" %{
+    set-option global source_local_kakrc true
+}
+
+cork mark.kak "https://github.com/alexherbo2/mark.kak"
+
+cork rainmeter.kak "https://github.com/raiguard/rainmeter.kak"
+
+cork smarttab.kak "https://github.com/andreyorst/smarttab.kak"
