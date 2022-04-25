@@ -1,5 +1,6 @@
 source "%val{config}/benchmark/plug/plug.kak/rc/plug.kak"
 set-option global plug_install_dir "%val{config}/benchmark/plug"
+set-option global plug_block_ui true
 
 plug-chain "https://github.com/raiguard/harpoon.kak" config %{
     harpoon-add-bindings

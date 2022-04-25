@@ -1,5 +1,6 @@
 source "%val{config}/benchmark/bundle/kak-bundle/rc/kak-bundle.kak"
 set-option global bundle_path "%val{config}/benchmark/bundle"
+hook global User bundle-after-install %{ quit! }
 
 bundle kakoune-buffer-switcher "https://github.com/occivink/kakoune-buffer-switcher" %{
     face global BufferSwitcherCurrent green

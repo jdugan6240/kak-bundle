@@ -196,9 +196,9 @@ The following load times were obtained using the benchmark suite in the benchmar
 
 | Plugin Manager | Mean [ms]     | Min [ms] | Max [ms] |
 |----------------|---------------|----------|----------|
-| kak-bundle     | 35.4 +- 7.5   | 28.3     | 49.2     |
-| [cork.kak](https://github.com/topisani/cork.kak)       | 46.5 +- 7.5   | 36.0     | 62.6     |
-| [plug.kak](https://github.com/andreyorst/plug.kak)       | 337.9 +- 20.7 | 308.7    | 366.5    |
+| kak-bundle     | 230.4 +- 15.8 | 192.7    | 246.5    |
+| [cork.kak](https://github.com/topisani/cork.kak)       | 236.8 +- 10.6 | 216.1    | 251.1    |
+| [plug.kak](https://github.com/andreyorst/plug.kak)       | 346.0 +- 21.9 | 308.7    | 366.5    |
 
 ## License
 
