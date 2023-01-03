@@ -64,7 +64,6 @@ bundle my-plugin 'git clone $URL ./my-plugin'
 
 # load an externally-managed plugin from outside bundle_path:
 bundle my-plugin 'ln -sf ~/src/my-plugin'
-# external plugins load normally, but bundle-update will ignore them
 ```
 As with URLs, the name of the repository/directory must match the plugin name specified in the first argument.
 
@@ -106,11 +105,11 @@ After this is done, the registered plugins can be installed with the `bundle-ins
 can be uninstalled with the `bundle-clean` command. `bundle-install` and `bundle-clean` can also accept individual
 plugins as arguments to install/uninstall selectively.
 
-Plugins may receive updates after being installed. Use the `bundle-update` command to update all installed plugins, or
+Plugins may receive updates after being installed. Use the `bundle-install` command to update all installed plugins, or
 pass specific plugins as arguments to update selectively:
 ```
-bundle-update                        # update all plugins
-bundle-update kak-lsp kakoune-extra  # update individual plugins
+bundle-install                        # update all plugins
+bundle-install kak-lsp kakoune-extra  # update individual plugins
 ```
 
 ## Tips and Tricks
@@ -153,22 +152,22 @@ bundle-noload kak-bundle https://codeberg.org/jdugan6240/kak-bundle
 
 This will create the needed directories on Kakoune launch, and download **kak-bundle** if not installed already.
 
-### Running `bundle-update` outside of Kakoune
+### Running `bundle-install` outside of Kakoune
 
 It can be desirable to update plugins outside of Kakoune - say, as part of a systemwide upgrade process. **kak-bundle**
 provides support for this in the form of its `bundle-after-install` hook, which is a user-defined hook that is triggered
-upon completion of `bundle-install` and `bundle-update`. Place the following in your kakrc:
+upon completion of `bundle-install`. Place the following in your kakrc:
 
 ```
 hook global User bundle-after-install %{
-  # This is run after bundle-install or bundle-update completes.
+  # This is run after bundle-install completes.
   # This could be for automatically deleting the *bundle* buffer, or some other similar action.
   # In this case, we want to exit Kakoune, so we return to the command line.
   quit!
 }
 ```
 
-Then, run the following on the command line: `kak -e 'bundle-update'`. **kak-bundle** will update the plugins, and then trigger
+Then, run the following on the command line: `kak -e 'bundle-install'`. **kak-bundle** will update the plugins, and then trigger
 the hook, quitting Kakoune and returning you to the command line.
 
 ## **kak-bundle** Configuration
@@ -176,17 +175,17 @@ the hook, quitting Kakoune and returning you to the command line.
 **kak-bundle** provides the following options that can be used to change how kak-bundle works:
 
 - `bundle_path` &mdash; This dictates the directory **kak-bundle** installs plugins to. This is `%val{config}/bundle` by default.
-- `bundle_parallel` &mdash; `4` by default, this determines how many parallel install/update jobs `bundle-install` and `bundle-update` can spawn; set to 1 to disable parallelism.
-- `bundle_git_clone_opts` &mdash; This determines the options `bundle-install` and `bundle-update` pass to the `git clone` command to install
+- `bundle_parallel` &mdash; `4` by default, this determines how many parallel install/update jobs `bundle-install` can spawn; set to 1 to disable parallelism.
+- `bundle_git_clone_opts` &mdash; This determines the options `bundle-install` passes to the `git clone` command to install
 and update plugins. By default, this is `'--single-branch --no-tags'`.
-- `bundle_git_shallow_opts` &mdash; This determines the shallow clone options `bundle-install` and `bundle-update` pass to the `git clone` command
+- `bundle_git_shallow_opts` &mdash; This determines the shallow clone options `bundle-install` passes to the `git clone` command
 to install and update plugins. This is used to create shallow clones of the plugin repositories, which store less of the plugin's commit
 history, thus saving space and download time. By default, this is `'--depth=1'`.
 
 In addition, **kak-bundle** provides some user-defined hooks to further customize how **kak-bundle** works. None are defined by
 default. They are:
 
-- `bundle-after-install` &mdash; This is run immediately after `bundle-install` or `bundle-update` completes (including the post-install code defined for each plugin). Example: `hook global User bundle-after-install %{ try %{ delete-buffer *bundle* } }`
+- `bundle-after-install` &mdash; This is run immediately after `bundle-install` completes (including the post-install code defined for each plugin). Example: `hook global User bundle-after-install %{ try %{ delete-buffer *bundle* } }`
 
 ## Performance
 

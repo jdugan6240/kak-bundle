@@ -5,7 +5,7 @@ declare-option -docstring %{
     git shallow options (clone & update; defaults: --depth=1)
 } str bundle_git_shallow_opts '--depth=1'
 declare-option -docstring %{
-    Maximum install & update jobs to run in parallel
+    Maximum install jobs to run in parallel
 } int bundle_parallel 4
 
 # There's unfortunately not an easy way to create a dictionary that
@@ -123,7 +123,7 @@ declare-option -hidden str bundle_sh_code %{
 
 hook global WinSetOption filetype=kak %{
     try %{
-        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-update|bundle-customload|bundle-noload|bundle)\s' 0:keyword
+        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-customload|bundle-noload|bundle)\s' 0:keyword
     } catch %{
         echo -debug "Error: kak-bundle: can't declare highlighters for 'kak' filetype: %val{error}"
     }
@@ -225,52 +225,6 @@ define-command bundle-install -params .. -docstring %{
                     (*' '*) vvc eval "$installer" ;;
                     (*) vvc git clone $kak_opt_bundle_git_clone_opts $kak_opt_bundle_git_shallow_opts "$installer" ;;
                 esac
-            done
-            wait
-            # Clear temp directory
-            bundle_tmp_clean
-            # Setup load files
-            for plugin; do
-                setup_load_file $plugin
-            done
-            # Run post-install hooks
-            echo "\nRunning post-install hooks...\n"
-            post_install_hooks $@
-            echo "\nDone. Press <esc> to exit."
-            # Try to run the user-defined after-install hook.
-            printf '%s\n' "evaluate-commands -client ${kak_client:-client0} %{ try %{ trigger-user-hook bundle-after-install } }" | kak -p "$kak_session"
-        } > "$output" 2>&1 & ) > /dev/null 2>&1
-        printf '%s\n' \
-                "edit! -fifo ${output} -scroll *bundle*" \
-                "map buffer normal <esc> %{: delete-buffer *bundle*<ret>}" \
-                "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
-    }
-}
-
-define-command bundle-update -params .. -docstring %{
-    bundle-install [plugins] - Update selected plugins (or all registered plugins if none selected)
-} -shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
-} %{
-    evaluate-commands %sh{
-        eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config" "$kak_opt_bundle_parallel"
-        bundle_cd
-        [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
-
-        # Setup fifo
-        fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
-        output=$fifo_tmp_dir/fifo
-        mkfifo "$output"
-        ( {
-            printf "Updating...\n\n"
-            # Update the plugins
-            for plugin; do
-                dir="$kak_opt_bundle_path/$plugin"
-                [ -e "$dir" ] || continue
-                # Ignore symlinked plugins
-                if ! [ -h "$dir" ] && cd "$dir" 2>/dev/null; then
-                   vvc git pull $kak_opt_bundle_git_shallow_opts
-                fi
             done
             wait
             # Clear temp directory
