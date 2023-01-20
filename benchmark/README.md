@@ -32,6 +32,6 @@ for .kak files, and the `plug-chain` command is utilized for `plug.kak` to speed
 
 ## Running the Benchmark ##
 
-The [hyperfine](https://github.com/sharkdp/hyperfine") tool must be installed to run the benchmark.
+The [hyperfine](https://github.com/sharkdp/hyperfine) tool must be installed to run the benchmark.
 
 To run the benchmark, simply navigate to this directory and run the run_benchmark.sh script.

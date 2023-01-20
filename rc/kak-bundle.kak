@@ -1,9 +1,6 @@
 declare-option -docstring %{
-    git clone options (defaults: single-branch, no tags)
-} str bundle_git_clone_opts '--single-branch --no-tags'
-declare-option -docstring %{
-    git shallow options (clone & update; defaults: --depth=1)
-} str bundle_git_shallow_opts '--depth=1'
+    git clone options (defaults: single-branch, no tags, depth=1)
+} str bundle_git_clone_opts '--single-branch --no-tags, --depth=1'
 declare-option -docstring %{
     Maximum install jobs to run in parallel
 } int bundle_parallel 4
@@ -34,7 +31,7 @@ declare-option -hidden str bundle_sh_code %{
         folder="$kak_opt_bundle_path/$name"
 
         find -L "$folder" -type f -name '*\.kak' | sed 's/.*/source "&"/' > "$kak_opt_bundle_path/$name-load.kak"
-        echo "trigger-user-hook bundle-loaded=$name" >> "$kak_opt_bundle_path/$name-load.kak"
+        printf "trigger-user-hook bundle-loaded=$name" >> "$kak_opt_bundle_path/$name-load.kak"
     }
 
     get_dict_value() { # Retrieves either the installer or post-install hook for a given plugin
@@ -67,7 +64,7 @@ declare-option -hidden str bundle_sh_code %{
             fi
         done
         # Whatever the returned value is, print it out
-        echo "$returned_val"
+        printf "$returned_val"
     }
 
     tmp_dir= tmp_file= tmp_cnt=0
@@ -91,7 +88,7 @@ declare-option -hidden str bundle_sh_code %{
         > $tmp_file.running
         (
             # Print command to be run (so we can easily tell which output came from what command)
-            echo "## in <$(pwd)>: $@"  > $tmp_file.running 2>&1
+            printf "## in <$(pwd)>: $@"  > $tmp_file.running 2>&1
             # Redirect stdout of command to file
             eval "$@" >> $tmp_file.running 2>&1
             # Only after command finishes do we show the output
@@ -108,12 +105,12 @@ declare-option -hidden str bundle_sh_code %{
         for plugin; do
             hook=$(get_dict_value $plugin 1)
             if ! [ -z "$hook" ]; then
-                echo "Running plugin install hook for $plugin"
+                printf "Running plugin install hook for $plugin"
                 cd "$kak_opt_bundle_path/$plugin"
                 eval "$hook"
                 cd "$kak_opt_bundle_path"
             else
-                echo "No plugin install hooks for $plugin"
+                printf "No plugin install hooks for $plugin"
             fi
         done
     }
@@ -191,7 +188,7 @@ define-command bundle-noload -params 2..4 -docstring %{
 define-command bundle-clean -params .. -docstring %{
     bundle-clean [plugins] - Uninstall selected plugins (or all registered plugins if none selected)
 } -shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
+    for plugin in $kak_opt_bundle_plugins; do printf $plugin; done
 } %{
     evaluate-commands %sh{
         [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
@@ -204,7 +201,7 @@ define-command bundle-clean -params .. -docstring %{
 define-command bundle-install -params .. -docstring %{
     bundle-install [plugins] - Install selected plugins (or all registered plugins if none selected)
 } -shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do echo $plugin; done
+    for plugin in $kak_opt_bundle_plugins; do printf $plugin; done
 } %{
     evaluate-commands %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_installers" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config" "$kak_opt_bundle_parallel"
@@ -223,7 +220,7 @@ define-command bundle-install -params .. -docstring %{
                 rm -Rf "$plugin"
                 case "$installer" in
                     (*' '*) vvc eval "$installer" ;;
-                    (*) vvc git clone $kak_opt_bundle_git_clone_opts $kak_opt_bundle_git_shallow_opts "$installer" ;;
+                    (*) vvc git clone $kak_opt_bundle_git_clone_opts "$installer" ;;
                 esac
             done
             wait
@@ -234,9 +231,9 @@ define-command bundle-install -params .. -docstring %{
                 setup_load_file $plugin
             done
             # Run post-install hooks
-            echo "\nRunning post-install hooks...\n"
+            printf "\nRunning post-install hooks...\n"
             post_install_hooks $@
-            echo "\nDone. Press <esc> to exit."
+            printf "\nDone. Press <esc> to exit."
             # Try to run the user-defined after-install hook.
             printf '%s\n' "evaluate-commands -client ${kak_client:-client0} %{ try %{ trigger-user-hook bundle-after-install } }" | kak -p "$kak_session"
         } > "$output" 2>&1 & ) > /dev/null 2>&1

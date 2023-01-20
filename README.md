@@ -12,7 +12,7 @@ the default location:
 
 ```
 mkdir -p $HOME/.config/kak/bundle/
-git clone https://codeberg.org/jdugan6240/kak-bundle $HOME/.config/kak/bundle/kak-bundle
+git clone https://git.sr.ht/~jdugan6240/kak-bundle $HOME/.config/kak/bundle/kak-bundle
 ```
 
 This isn't enough by itself, though &mdash; Kakoune needs to be told to load kak-bundle. This is done by adding the following
@@ -20,14 +20,14 @@ line to your kakrc:
 
 ```
 source "%val{config}/bundle/plugins/kak-bundle/rc/kak-bundle.kak"
-bundle-noload kak-bundle https://codeberg.org/jdugan6240/kak-bundle
+bundle-noload kak-bundle https://git.sr.ht/~jdugan6240/kak-bundle
 ```
 
 Alternatively, the need to load kak-bundle manually can be avoided by placing the kak-bundle repo in your autoload:
 
 ```
 mkdir -p $HOME/.config/kak/autoload/bundle/
-git clone https://codeberg.org/jdugan6240/kak-bundle $HOME/.config/kak/autoload/bundle/kak-bundle
+git clone https://git.sr.ht/~jdugan6240/kak-bundle $HOME/.config/kak/autoload/bundle/kak-bundle
 ```
 
 This option doesn't allow kak-bundle to manage itself, however.
@@ -144,7 +144,7 @@ evaluate-commands %sh{
   plugins="$kak_config/bundle"
   mkdir -p "$plugins"
   [ ! -e "$plugins/kak-bundle" ] && \
-    git clone -q https://codeberg.org/jdugan6240/kak-bundle "$plugins/kak-bundle"
+    git clone -q https://git.sr.ht/~jdugan6240/kak-bundle "$plugins/kak-bundle"
   printf "%s\n" "source '$plugins/kak-bundle/rc/kak-bundle.kak'"
 }
 bundle-noload kak-bundle https://codeberg.org/jdugan6240/kak-bundle
@@ -177,10 +177,7 @@ the hook, quitting Kakoune and returning you to the command line.
 - `bundle_path` &mdash; This dictates the directory **kak-bundle** installs plugins to. This is `%val{config}/bundle` by default.
 - `bundle_parallel` &mdash; `4` by default, this determines how many parallel install/update jobs `bundle-install` can spawn; set to 1 to disable parallelism.
 - `bundle_git_clone_opts` &mdash; This determines the options `bundle-install` passes to the `git clone` command to install
-and update plugins. By default, this is `'--single-branch --no-tags'`.
-- `bundle_git_shallow_opts` &mdash; This determines the shallow clone options `bundle-install` passes to the `git clone` command
-to install and update plugins. This is used to create shallow clones of the plugin repositories, which store less of the plugin's commit
-history, thus saving space and download time. By default, this is `'--depth=1'`.
+and update plugins. By default, this is `'--single-branch --no-tags --depth=1'`.
 
 In addition, **kak-bundle** provides some user-defined hooks to further customize how **kak-bundle** works. None are defined by
 default. They are:
@@ -195,9 +192,9 @@ The following load times were obtained using the benchmark suite in the benchmar
 
 | Plugin Manager | Mean [ms]     | Min [ms] | Max [ms] |
 |----------------|---------------|----------|----------|
-| kak-bundle     | 230.4 +- 15.8 | 192.7    | 246.5    |
-| [cork.kak](https://github.com/topisani/cork.kak)       | 236.8 +- 10.6 | 216.1    | 251.1    |
-| [plug.kak](https://github.com/andreyorst/plug.kak)       | 346.0 +- 21.9 | 308.7    | 366.5    |
+| kak-bundle     | 171.8 +- 14.4 | 150.1    | 193.8    |
+| [cork.kak](https://github.com/topisani/cork.kak)       | 176.5 +- 19.3 | 156.0    | 213.3    |
+| [plug.kak](https://github.com/andreyorst/plug.kak)       | 264.3 +- 35.1 | 220.4    | 313.6    |
 
 ## License
 
@@ -205,6 +202,6 @@ This plugin is "licensed" under the Unlicense.
 
 ## Contributors
 
-James Dugan (https://codeberg.org/jdugan6240)
+James Dugan (https://sr.ht/~jdugan6240)
 
 Alin Mr. <almr.oss@outlook.com>
