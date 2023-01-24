@@ -1,6 +1,6 @@
 declare-option -docstring %{
-    git clone options (defaults: single-branch, no tags, depth=1)
-} str bundle_git_clone_opts '--single-branch --no-tags, --depth=1'
+    git clone options (defaults: single-branch, depth=1)
+} str bundle_git_clone_opts '--single-branch --depth=1'
 declare-option -docstring %{
     Maximum install jobs to run in parallel
 } int bundle_parallel 4
@@ -88,7 +88,7 @@ declare-option -hidden str bundle_sh_code %{
         > $tmp_file.running
         (
             # Print command to be run (so we can easily tell which output came from what command)
-            printf "## in <$(pwd)>: $@"  > $tmp_file.running 2>&1
+            echo "## in <$(pwd)>: $@"  > $tmp_file.running 2>&1
             # Redirect stdout of command to file
             eval "$@" >> $tmp_file.running 2>&1
             # Only after command finishes do we show the output
@@ -105,12 +105,12 @@ declare-option -hidden str bundle_sh_code %{
         for plugin; do
             hook=$(get_dict_value $plugin 1)
             if ! [ -z "$hook" ]; then
-                printf "Running plugin install hook for $plugin"
+                printf "Running plugin install hook for $plugin\n"
                 cd "$kak_opt_bundle_path/$plugin"
                 eval "$hook"
                 cd "$kak_opt_bundle_path"
             else
-                printf "No plugin install hooks for $plugin"
+                printf "No plugin install hooks for $plugin\n"
             fi
         done
     }
@@ -188,7 +188,7 @@ define-command bundle-noload -params 2..4 -docstring %{
 define-command bundle-clean -params .. -docstring %{
     bundle-clean [plugins] - Uninstall selected plugins (or all registered plugins if none selected)
 } -shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do printf $plugin; done
+    for plugin in $kak_opt_bundle_plugins; do printf "$plugin\n"; done
 } %{
     evaluate-commands %sh{
         [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
@@ -201,7 +201,7 @@ define-command bundle-clean -params .. -docstring %{
 define-command bundle-install -params .. -docstring %{
     bundle-install [plugins] - Install selected plugins (or all registered plugins if none selected)
 } -shell-script-candidates %{
-    for plugin in $kak_opt_bundle_plugins; do printf $plugin; done
+    for plugin in $kak_opt_bundle_plugins; do printf "$plugin\n"; done
 } %{
     evaluate-commands %sh{
         eval "$kak_opt_bundle_sh_code" # "$kak_opt_bundle_plugins" "$kak_opt_bundle_installers" "$kak_opt_bundle_install_hooks" "$kak_opt_bundle_path" "$kak_config" "$kak_opt_bundle_parallel"

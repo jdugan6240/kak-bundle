@@ -177,7 +177,7 @@ the hook, quitting Kakoune and returning you to the command line.
 - `bundle_path` &mdash; This dictates the directory **kak-bundle** installs plugins to. This is `%val{config}/bundle` by default.
 - `bundle_parallel` &mdash; `4` by default, this determines how many parallel install/update jobs `bundle-install` can spawn; set to 1 to disable parallelism.
 - `bundle_git_clone_opts` &mdash; This determines the options `bundle-install` passes to the `git clone` command to install
-and update plugins. By default, this is `'--single-branch --no-tags --depth=1'`.
+and update plugins. By default, this is `'--single-branch --depth=1'`.
 
 In addition, **kak-bundle** provides some user-defined hooks to further customize how **kak-bundle** works. None are defined by
 default. They are:
