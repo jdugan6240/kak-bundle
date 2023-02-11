@@ -1,5 +1,8 @@
 #!/usr/bin/sh
 
+newline='
+'
+
 bundle_cd() { # cd to bundle-path; create if missing
     [ -d "$kak_opt_bundle_path" ] || mkdir -p "$kak_opt_bundle_path"
     cd "$kak_opt_bundle_path"
@@ -58,26 +61,45 @@ bundle_tmp_new() { # Creates temporary filename
     tmp_file=$tmp_dir/bundle-"$tmp_cnt.${1:-tmp}"
 }
 
+bundle_tmp_log_load() { # args: log-without-ext
+    local status log_opt
+    # If the 
+    if [ -e "$1.running" ]; then
+        running=$(( running + 1))
+        log_opt=running
+        status="%{...$newline}"
+    else
+        log_opt=finished
+        status="%file<$1.log>"
+    fi
+    printf >&3 'bundle-status-log-load %s %%file<%s.pwd> %%file<%s.cmd> %s\n' "$log_opt" "$1" "$1" "$status" >&3
+}
+
+bundle_tmp_log_wait() { # Wait until all jobs have finished
+    # Ensure there are jobs to wait for
+    [ -n "$tmp_dir" ] || return 0
+    # Loop infinitely until all jobs have finished
+    while :; do
+        set -- "$tmp_dir"/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
+        [ $# != 0 ] || break
+        sleep 1
+    done
+}
+
 bundle_tmp_clean() { # Remove temp dir
     rm -r $tmp_dir
 }
 
-vvc() { # Run commands in parallel
+vvc() { # execute command in parallel
     bundle_tmp_new job
-    > $tmp_file.running
-    (
-        # Print command to be run (so we can easily tell which output came from what command)
-        printf '## in <%s>: %s\n' "$(pwd)" "$*"  > $tmp_file.running 2>&1
-        # Redirect stdout of command to file
-        eval "$@" >> $tmp_file.running 2>&1
-        # Only after command finishes do we show the output
-        # This makes sure we don't mangle output of different processes
-        cat $tmp_file.running
-        rm $tmp_file.running
-    ) &
-    set -- $tmp_dir/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
-    # If too many jobs are running, wait
-    if [ $# -ge $kak_opt_bundle_parallel ]; then wait $!; fi
+    printf '%s\n' "$*" >"$tmp_file".cmd
+    printf '%s' "$PWD" >"$tmp_file".pwd
+
+    > "$tmp_file.running"; >"$tmp_file".log
+    ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
+
+    set -- "$tmp_dir"/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
+    [ $# -lt "$kak_opt_bundle_parallel" ] || wait $!
 }
 
 post_install_hooks() { # Run post-install hooks of given plugins
@@ -94,45 +116,53 @@ post_install_hooks() { # Run post-install hooks of given plugins
     done
 }
 
-# bundle-install
-bundle_install() {
-    bundle_cd
-    [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
-
-    # Setup fifo
-    fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
-    output=$fifo_tmp_dir/fifo
-    mkfifo "$output"
-    ( {
-        printf "Installing...\n\n"
-        # Install the plugins
-        for plugin; do
-            installer=$(get_dict_value $plugin 0)
-            rm -Rf "$plugin"
-            case "$installer" in
-                (*' '*) vvc eval "$installer" ;;
-                (*) vvc git clone $kak_opt_bundle_git_clone_opts "$installer" ;;
-            esac
-        done
-        wait
-        # Clear temp directory
-        bundle_tmp_clean
-        # Setup load files
-        for plugin; do
-            setup_load_file $plugin
-        done
-        # Run post-install hooks
-        printf "\nRunning post-install hooks...\n"
-        post_install_hooks $@
-        printf "\nDone. Press <esc> to exit."
-        # Try to enable pressing <esc> to exit.
-        # This requires going back to this buffer.
-        printf '%s\n' "evaluate-commands -client ${kak_client:-client0} %{ try %{ buffer *bundle*; map buffer normal <esc> %{:delete-buffer *bundle*<ret>} } }" | kak -p "$kak_session"
-        # Try to run the user-defined after-install hook.
-        printf '%s\n' "evaluate-commands -client ${kak_client:-client0} %{ try %{ trigger-user-hook bundle-after-install } }" | kak -p "$kak_session"
-    } > "$output" 2>&1 & ) > /dev/null 2>&1
-    printf '%s\n' \
-            "edit! -fifo ${output} -scroll *bundle*" \
-            "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
-
+bundle_status_init() {
+    bundle_tmp_new  # ensure tmp_dir exists
+    printf >&3 '%s\n' \
+        'edit -scratch *bundle-status*' \
+        "set buffer bundle_tmp_dir %<$tmp_dir>" \
+        'hook -group bundle-status buffer NormalIdle .* %{ bundle-status-update-hook }'
 }
+
+# bundle-install
+# bundle_install() {
+#     bundle_cd
+#     [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
+
+#     # Setup fifo
+#     fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
+#     output=$fifo_tmp_dir/fifo
+#     mkfifo "$output"
+#     ( {
+#         printf "Installing...\n\n"
+#         # Install the plugins
+#         for plugin; do
+#             installer=$(get_dict_value $plugin 0)
+#             rm -Rf "$plugin"
+#             case "$installer" in
+#                 (*' '*) vvc eval "$installer" ;;
+#                 (*) vvc git clone $kak_opt_bundle_git_clone_opts "$installer" ;;
+#             esac
+#         done
+#         wait
+#         # Clear temp directory
+#         bundle_tmp_clean
+#         # Setup load files
+#         for plugin; do
+#             setup_load_file $plugin
+#         done
+#         # Run post-install hooks
+#         printf "\nRunning post-install hooks...\n"
+#         post_install_hooks $@
+#         printf "\nDone. Press <esc> to exit."
+#         # Try to enable pressing <esc> to exit.
+#         # This requires going back to this buffer.
+#         printf '%s\n' "evaluate-commands -client ${kak_client:-client0} %{ try %{ buffer *bundle*; map buffer normal <esc> %{:delete-buffer *bundle*<ret>} } }" | kak -p "$kak_session"
+#         # Try to run the user-defined after-install hook.
+#         printf '%s\n' "evaluate-commands -client ${kak_client:-client0} %{ try %{ trigger-user-hook bundle-after-install } }" | kak -p "$kak_session"
+#     } > "$output" 2>&1 & ) > /dev/null 2>&1
+#     printf '%s\n' \
+#             "edit! -fifo ${output} -scroll *bundle*" \
+#             "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
+
+# }
