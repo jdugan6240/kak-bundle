@@ -1,7 +1,4 @@
 declare-option -docstring %{
-    git clone options (defaults: single-branch, depth=1)
-} str bundle_git_clone_opts '--single-branch --depth=1'
-declare-option -docstring %{
     Maximum install jobs to run in parallel
 } int bundle_parallel 4
 
@@ -129,7 +126,6 @@ define-command bundle-install -params .. -docstring %{
         # "$kak_opt_bundle_parallel"
         # "$kak_client"
         # "$kak_session"
-        # "$kak_opt_bundle_git_clone_opts"
 
         bundle_status_init
         bundle_cd
@@ -149,7 +145,7 @@ define-command bundle-install -params .. -docstring %{
             rm -Rf "$plugin"
             case "$installer" in
                 (*' '*) vvc eval "$installer" ;;
-                (*) eval "vvc git clone $kak_opt_bundle_git_clone_opts \"\$installer\"" ;;
+                (*) eval "vvc git clone \"\$installer\"" ;;
             esac
         done
         bundle_tmp_log_wait
@@ -175,7 +171,6 @@ define-command bundle-run-install-hooks %{
         # "$kak_opt_bundle_parallel"
         # "$kak_client"
         # "$kak_session"
-        # "$kak_opt_bundle_git_clone_opts"
         fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
         output=$fifo_tmp_dir/fifo
         mkfifo "$output"
