@@ -18,10 +18,11 @@ chmod +x ~/.local/bin/cork
 git clone https://github.com/andreyorst/plug.kak.git ~/.config/kak/benchmark/plug/plug.kak
 
 # Install kak-bundle
-git clone --branch big-rewrite https://codeberg.org/jdugan6240/kak-bundle.git ~/.config/kak/benchmark/bundle/kak-bundle
+# We're using the local copy of kak-bundle here
+cp -r ../../kak-bundle ~/.config/kak/benchmark/bundle/
 
 # plug-install unfortunately doesn't work outside of Kakoune, so we'll install plug.kak's plugins here
-# To give plug.kak a fair chance, we'll do a shallow clone of each repo
+# To give plug.kak the best chance, we'll do a shallow clone of each repo
 cd ~/.config/kak/benchmark/plug
 git clone --single-branch --no-tags --depth=1 "https://github.com/raiguard/harpoon.kak"
 git clone --single-branch --no-tags --depth=1 "https://github.com/eraserhd/kak-ansi"
@@ -54,15 +55,15 @@ kak -e 'bundle-install'
 # Run benchmark for plug.kak
 cp ./plug.kak-kakrc ~/.config/kak/kakrc
 printf "\n\n\n\nPLUG.KAK\n"
-hyperfine "kak -ui dummy -e 'quit'"
+hyperfine --warmup 10 "kak -ui dummy -e 'quit'"
 # Run benchmark for cork.kak
 cp ./cork.kak-kakrc ~/.config/kak/kakrc
 printf "\n\n\n\nCORK.KAK\n"
-hyperfine "kak -ui dummy -e 'quit'"
+hyperfine --warmup 10 "kak -ui dummy -e 'quit'"
 # Run benchmark for kak-bundle
 cp ./kak-bundle-kakrc ~/.config/kak/kakrc
 printf "\n\n\n\nKAK-BUNDLE\n"
-hyperfine "kak -ui dummy -e 'quit'"
+hyperfine --warmup 10 "kak -ui dummy -e 'quit'"
 
 # Restore kakrc at the end
 mv ~/.config/kak/benchmark/kakrc_old ~/.config/kak/kakrc

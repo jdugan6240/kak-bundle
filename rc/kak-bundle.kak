@@ -138,7 +138,9 @@ declare-option -hidden str bundle_sh_code %{
             else
                 printf "No plugin install hooks for $plugin\n"
             fi
+            printf "\n"
         done
+        touch "$tmp_dir"/.hooks-done
     }
 
     bundle_status_init() {
@@ -275,43 +277,16 @@ define-command bundle-install -params .. -docstring %{
             esac
         done
         bundle_tmp_log_wait
-        > "$tmp_dir"/.done
+        > "$tmp_dir"/.install-done
         ) >/dev/null 2>&1 3>&- &
     }
 }
 
 # Install UI
 
-define-command bundle-run-install-hooks %{
+define-command bundle-status-close %{
     delete-buffer *bundle-status*
-    evaluate-commands %sh{
-        set -u
-        eval "$kak_opt_bundle_sh_code"
-        # "$kak_command_fifo"
-        # "$kak_response_fifo"
-        # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_installers"
-        # "$kak_opt_bundle_install_hooks"
-        # "$kak_opt_bundle_path"
-        # "$kak_config"
-        # "$kak_opt_bundle_parallel"
-        # "$kak_client"
-        # "$kak_session"
-        fifo_tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}"/kak-bundle-XXXXXXX)
-        output=$fifo_tmp_dir/fifo
-        mkfifo "$output"
-        ( {
-            printf '%s\n' 'Running post-install hooks'
-            eval set -- "$kak_opt_bundle_plugins_to_install"
-            post_install_hooks $@
-            printf '\n %s\n' 'Post-install hooks complete; press <ESC> to dismiss'
-          } > "$output" 2>&1 & ) > /dev/null 2>&1 < /dev/null
-        printf '%s\n' \
-            "edit! -fifo ${output} -scroll *bundle-install-hooks*" \
-            'map buffer normal <esc> %{: delete-buffer *bundle-install-hooks*<ret>}' \
-            "hook -always -once buffer BufCloseFifo .* %{ nop %sh{ rm -Rf \"$fifo_tmp_dir\" } }"
-    }
-}
+} -hidden
 
 define-command bundle-status-log-load -params 4 %{
     buffer *bundle-status*
@@ -333,18 +308,25 @@ define-command bundle-status-log-show -params 1 -docstring %{
     }
 } -hidden
 
-define-command bundle-status-update-hook -params .. -docstring %{
-} %{
-    evaluate-commands -- %sh{
+define-command bundle-install-hook-update-hook -params .. %{
+    set-option buffer bundle_hook_output %{}
 
+    # Print install hook output into buffer
+    evaluate-commands -- %sh{
         set -u; exec 3>&1 1>&2
         eval "$kak_opt_bundle_sh_code"
         # "$kak_command_fifo"
         # "$kak_response_fifo"
-        # "$kak_opt_bundle_verbose"
+        # "$kak_opt_bundle_plugins"
+        # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_install_hooks"
         # "$kak_opt_bundle_path"
+        # "$kak_config"
         # "$kak_opt_bundle_parallel"
-        # "$kak_quoted_opt_bundle_loaded_plugins"
+        # "$kak_client"
+        # "$kak_session"
+        tmp_dir=$kak_opt_bundle_tmp_dir
+
         tmp_dir=$kak_opt_bundle_tmp_dir
         printf >&3 '%s\n' 'buffer *bundle-status*'
 
@@ -355,20 +337,101 @@ define-command bundle-status-update-hook -params .. -docstring %{
             ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}" >&3
         done
         printf >&3 '%s\n' "bundle-status-log-show $running"
-        if [ -e "$tmp_dir/.done" ]; then
-            for plugin in $kak_opt_bundle_plugins_to_install; do
-                setup_load_file $plugin
-            done
+
+        hook_tmp_file=$tmp_dir/bundle-install-hooks-output
+
+        hook_output=$(cat $hook_tmp_file)
+
+        for line in "$hook_output"; do
+            printf >&3 '%s\n' \
+                "set-register dquote %{$line}" \
+                "exec %{o} %{<esc>} %{p}" \
+                "set-register dquote %{}"
+        done
+
+        printf >&3 '%s\n' 'exec gh'
+
+    }
+    # Determine if the install hooks are done
+    evaluate-commands -- %sh{
+        set -u; exec 3>&1 1>&2
+        eval "$kak_opt_bundle_sh_code"
+        # "$kak_command_fifo"
+        # "$kak_response_fifo"
+        # "$kak_opt_bundle_plugins"
+        # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_install_hooks"
+        # "$kak_opt_bundle_path"
+        # "$kak_config"
+        # "$kak_opt_bundle_parallel"
+        # "$kak_client"
+        # "$kak_session"
+        tmp_dir=$kak_opt_bundle_tmp_dir
+        if [ -e "$tmp_dir/.hooks-done" ]; then
             # Indicate that install is done
             printf >&3 '%s\n' \
                 'rmhooks buffer bundle-status' \
-                'map buffer normal <esc> %{: bundle-run-install-hooks<ret>}' \
+                'map buffer normal <esc> %{: bundle-status-close<ret>}' \
                 'exec %{ge} %{o} %{DONE (<} %{esc} %{> = dismiss)} %{<esc>}' \
                 'nop -- %sh{
                     set -- "$kak_opt_bundle_tmp_dir"
                     if [ -n "$1" ] && [ -e "$1"/.rmme ]; then rm -Rf "$1"; fi
                 }' \
-                'set buffer bundle_tmp_dir %{}'
+                'set buffer bundle_tmp_dir %{}' \
+                "evaluate-commands -client ${kak_client:-client0} %{ try %{ trigger-user-hook bundle-after-install } }"
+        fi
+    }
+} -hidden
+
+define-command bundle-status-update-hook -params .. -docstring %{
+} %{
+    evaluate-commands -- %sh{
+
+        set -u; exec 3>&1 1>&2
+        eval "$kak_opt_bundle_sh_code"
+        # "$kak_command_fifo"
+        # "$kak_response_fifo"
+        # "$kak_opt_bundle_plugins"
+        # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_install_hooks"
+        # "$kak_opt_bundle_path"
+        # "$kak_config"
+        # "$kak_opt_bundle_parallel"
+        # "$kak_client"
+        # "$kak_session"
+        tmp_dir=$kak_opt_bundle_tmp_dir
+        printf >&3 '%s\n' 'buffer *bundle-status*'
+
+        printf >&3 'set buffer bundle_log_%s ""\n' finished running  # clear log vars
+        running=0
+        set -- "$tmp_dir"/*.job.log
+        for log; do
+            ! [ -e "$log" ] || bundle_tmp_log_load "${log%.log}" >&3
+        done
+        printf >&3 '%s\n' "bundle-status-log-show $running"
+        if [ -e "$tmp_dir/.install-done" ]; then
+    for plugin in $kak_opt_bundle_plugins_to_install; do
+                setup_load_file $plugin
+            done
+
+            # Install is done; remove install hooks
+            printf >&3 '%s\n' 'rmhooks buffer bundle-status'
+
+            # Prepare to place output of install hooks in buffer
+            printf >&3 '%s\n' 'hook -group bundle-status buffer NormalIdle .* %{ bundle-install-hook-update-hook }'
+            printf >&3 '%s\n' 'hook -once -group bundle-status buffer NormalIdle .* %{ exec HLHL }'
+
+            # Now run install hooks
+            hook_tmp_file=$tmp_dir/bundle-install-hooks-output
+            (
+                {
+                    printf '%s\n' 'Running post-install hooks'
+                    eval set -- "$kak_opt_bundle_plugins_to_install"
+                    post_install_hooks $@
+                } > $hook_tmp_file 2>&1 &
+            ) >/dev/null 2>&1 3>&- &
+
+            printf >&3 '%s\n' 'exec HLHL'
         fi
     }
     hook -once -group bundle-status buffer NormalIdle .* %{
