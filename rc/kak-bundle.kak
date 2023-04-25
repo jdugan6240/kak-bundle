@@ -309,8 +309,6 @@ define-command bundle-status-log-show -params 1 -docstring %{
 } -hidden
 
 define-command bundle-install-hook-update-hook -params .. %{
-    set-option buffer bundle_hook_output %{}
-
     # Print install hook output into buffer
     evaluate-commands -- %sh{
         set -u; exec 3>&1 1>&2
