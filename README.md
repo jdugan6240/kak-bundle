@@ -12,7 +12,7 @@ the default location:
 
 ```
 mkdir -p $HOME/.config/kak/bundle/
-git clone https://git.sr.ht/~jdugan6240/kak-bundle $HOME/.config/kak/bundle/kak-bundle
+git clone https://github.com/jdugan6240/kak-bundle $HOME/.config/kak/bundle/kak-bundle
 ```
 
 This isn't enough by itself, though &mdash; Kakoune needs to be told to load kak-bundle. This is done by adding the following
@@ -20,14 +20,14 @@ line to your kakrc:
 
 ```
 source "%val{config}/bundle/plugins/kak-bundle/rc/kak-bundle.kak"
-bundle-noload kak-bundle https://git.sr.ht/~jdugan6240/kak-bundle
+bundle-noload kak-bundle https://github.com/jdugan6240/kak-bundle
 ```
 
 Alternatively, the need to load kak-bundle manually can be avoided by placing the kak-bundle repo in your autoload:
 
 ```
 mkdir -p $HOME/.config/kak/autoload/bundle/
-git clone https://git.sr.ht/~jdugan6240/kak-bundle $HOME/.config/kak/autoload/bundle/kak-bundle
+git clone https://github.com/jdugan6240/kak-bundle $HOME/.config/kak/autoload/bundle/kak-bundle
 ```
 
 This option doesn't allow kak-bundle to manage itself, however.
@@ -144,7 +144,7 @@ evaluate-commands %sh{
   plugins="$kak_config/bundle"
   mkdir -p "$plugins"
   [ ! -e "$plugins/kak-bundle" ] && \
-    git clone -q https://git.sr.ht/~jdugan6240/kak-bundle "$plugins/kak-bundle"
+    git clone -q https://github.com/jdugan6240/kak-bundle "$plugins/kak-bundle"
   printf "%s\n" "source '$plugins/kak-bundle/rc/kak-bundle.kak'"
 }
 bundle-noload kak-bundle https://codeberg.org/jdugan6240/kak-bundle
@@ -197,9 +197,3 @@ The following load times were obtained using the benchmark suite in the benchmar
 ## License
 
 This plugin is "licensed" under the Unlicense.
-
-## Contributors
-
-James Dugan (https://sr.ht/~jdugan6240)
-
-Alin Mr. <almr.oss@outlook.com>
