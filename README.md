@@ -19,7 +19,7 @@ This isn't enough by itself, though &mdash; Kakoune needs to be told to load kak
 line to your kakrc:
 
 ```
-source "%val{config}/bundle/plugins/kak-bundle/rc/kak-bundle.kak"
+source "%val{config}/bundle/kak-bundle/rc/kak-bundle.kak"
 bundle-noload kak-bundle https://github.com/jdugan6240/kak-bundle
 ```
 
