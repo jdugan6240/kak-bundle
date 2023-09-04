@@ -6,7 +6,7 @@ update plugins, and optionally manage loading individual plugins and scripts for
 ## Install
 
 **kak-bundle** can be located anywhere on the system, but in order to manage itself, it should be installed in the
-plugin installation directory. By default, this is `%val{config}/bundle/plugins`, which in most cases expands to
+plugin installation directory. By default, this is `%val{config}/bundle`, which in most cases expands to
 `~/.config/kak/bundle/`, but this can be changed by setting the `bundle_path` option. The following assumes
 the default location:
 
@@ -147,7 +147,7 @@ evaluate-commands %sh{
     git clone -q https://github.com/jdugan6240/kak-bundle "$plugins/kak-bundle"
   printf "%s\n" "source '$plugins/kak-bundle/rc/kak-bundle.kak'"
 }
-bundle-noload kak-bundle https://codeberg.org/jdugan6240/kak-bundle
+bundle-noload kak-bundle https://github.com/jdugan6240/kak-bundle
 ```
 
 This will create the needed directories on Kakoune launch, and download **kak-bundle** if not installed already.
