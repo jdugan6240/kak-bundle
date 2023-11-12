@@ -6,7 +6,7 @@ This is a benchmarking suite measuring the load time of three plugin managers fo
 - [cork.kak](https://github.com/topisani/cork.kak)
 - kak-bundle
 
-The benchmark uses three equivalent configurations for the plugin managers that load the following plugins:
+The benchmark uses three equivalent configurations for the plugin managers that load the following plugins (chosen mostly arbitrarily):
 
 - [harpoon.kak](https://github.com/raiguard/harpoon.kak)
 - [kak-ansi](https://github.com/eraserhd/kak-ansi)
@@ -23,7 +23,6 @@ The benchmark uses three equivalent configurations for the plugin managers that 
 - [kakoune-sudo-write](https://github.com/occivink/kakoune-sudo-write)
 - [kakoune-text-objects](https://github.com/delapouite/kakoune-text-objects)
 - [local-kakrc](https://github.com/dgmulf/local-kakrc)
-- [mark.kak](https://github.com/alexherbo2/mark.kak)
 - [rainmeter.kak](https://github.com/raiguard/rainmeter.kak)
 - [smarttab.kak](https://github.com/andreyorst/smarttab.kak)
 

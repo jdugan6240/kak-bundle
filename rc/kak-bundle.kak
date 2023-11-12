@@ -154,13 +154,17 @@ declare-option -hidden str bundle_sh_code %{
 
 # Highlighters
 
-hook global WinSetOption filetype=kak %{
-    try %{
-        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-customload|bundle-noload|bundle)\s' 0:keyword
-    } catch %{
+hook global WinSetOption filetype=kak %@
+    try %$
+        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-install-hook|bundle-customload|bundle-noload|bundle)\s' 0:keyword
+        add-highlighter shared/kakrc/bundle_install_hook1 region -recurse '\{' '\bbundle-install-hook\K\h[\w\.]+\K\h%\{' '\}' ref sh 
+        add-highlighter shared/kakrc/bundle_install_hook2 region -recurse '\[' '\bbundle-install-hook\K\h[\w\.]+\K\h%\[' '\]' ref sh 
+        add-highlighter shared/kakrc/bundle_install_hook3 region -recurse '\(' '\bbundle-install-hook\K\h[\w\.]+\K\h%\(' '\)' ref sh 
+        add-highlighter shared/kakrc/bundle_install_hook4 region -recurse '\<' '\bbundle-install-hook\K\h[\w\.]+\K\h%\<' '\>' ref sh 
+    $ catch %$
         echo -debug "Error: kak-bundle: can't declare highlighters for 'kak' filetype: %val{error}"
-    }
-}
+    $
+@
 
 # Internal commands
 
@@ -177,11 +181,21 @@ define-command -hidden bundle-add-install-hook -params 2 %{
     set-option -add global bundle_install_hooks 🦀
 }
 
+# HACK to allow comparing strings
+define-command -hidden bundle-list-len-eq0 -params 0 nop -override
+declare-option -hidden str-list bundle_str_test
+define-command -hidden bundle-streq -params .. %{
+    set-option global bundle_str_test %arg{1}
+    set-option -remove global bundle_str_test %arg{2}
+    bundle-list-len-eq0 %opt{bundle_str_test}
+} -override
+
 # Commands
 
 define-command bundle -params 2..4 -docstring %{
     bundle <plugin-name> <installer> [config] [post-install code] - Register and load plugin
 } %{
+    echo -debug "Arg4: ""%arg{4}"""
     set-option -add global bundle_plugins %arg{1}
     bundle-add-installer %arg{1} %arg{2}
     try %{
@@ -190,7 +204,10 @@ define-command bundle -params 2..4 -docstring %{
     try %{
         source "%opt{bundle_path}/%arg{1}-load.kak"
     }
+    # Kept around for backwards compatibility purposes
     try %{
+        bundle-streq %arg{4} ""
+    } catch %{
         bundle-add-install-hook %arg{1} %arg{4}
     }
 }
@@ -203,7 +220,10 @@ define-command bundle-customload -params 3..4 -docstring %{
     try %{
         evaluate-commands %arg{3}
     }
+    # Kept around for backwards compatibility purposes
     try %{
+        bundle-streq %arg{4} ""
+    } catch %{
         bundle-add-install-hook %arg{1} %arg{4}
     }
 }
@@ -216,9 +236,18 @@ define-command bundle-noload -params 2..4 -docstring %{
     try %{
         hook global -group bundle-loaded User "bundle-loaded=%arg{1}" %arg{3}
     }
+    # Kept around for backwards compatibility purposes
     try %{
+        bundle-streq %arg{4} ""
+    } catch %{
         bundle-add-install-hook %arg{1} %arg{4}
     }
+}
+
+define-command bundle-install-hook -params 2 -docstring %{
+    bundle-install-hook <plugin-name> <install-hook> - Define shell code to be run after installing plugin
+} %{
+    bundle-add-install-hook %arg{1} %arg{2}
 }
 
 define-command bundle-clean -params .. -docstring %{
@@ -233,7 +262,6 @@ define-command bundle-clean -params .. -docstring %{
         done
     }
 }
-
 
 define-command bundle-install -params .. -docstring %{
     bundle-install [plugins] - Install selected plugins (or all registered plugins if none selected)

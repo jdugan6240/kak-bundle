@@ -39,7 +39,6 @@ git clone --single-branch --no-tags --depth=1 "https://gitlab.com/Screwtapello/k
 git clone --single-branch --no-tags --depth=1 "https://github.com/occivink/kakoune-sudo-write" 
 git clone --single-branch --no-tags --depth=1 "https://github.com/delapouite/kakoune-text-objects" 
 git clone --single-branch --no-tags --depth=1 "https://github.com/dgmulf/local-kakrc"
-git clone --single-branch --no-tags --depth=1 "https://github.com/alexherbo2/mark.kak" 
 git clone --single-branch --no-tags --depth=1 "https://github.com/raiguard/rainmeter.kak" 
 git clone --single-branch --no-tags --depth=1 "https://github.com/andreyorst/smarttab.kak"
 

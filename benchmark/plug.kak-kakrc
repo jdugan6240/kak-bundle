@@ -45,6 +45,5 @@ plug "https://github.com/occivink/kakoune-sudo-write" \
 plug "https://github.com/delapouite/kakoune-text-objects" \
 plug "https://github.com/dgmulf/local-kakrc" config %{
     set-option global source_local_kakrc true
-} plug "https://github.com/alexherbo2/mark.kak" \
-plug "https://github.com/raiguard/rainmeter.kak" \
+} plug "https://github.com/raiguard/rainmeter.kak" \
 plug "https://github.com/andreyorst/smarttab.kak"

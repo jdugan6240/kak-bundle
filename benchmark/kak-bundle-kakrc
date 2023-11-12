@@ -62,8 +62,6 @@ bundle local-kakrc "https://github.com/dgmulf/local-kakrc" %{
     set-option global source_local_kakrc true
 }
 
-bundle mark.kak "https://github.com/alexherbo2/mark.kak"
-
 bundle rainmeter.kak "https://github.com/raiguard/rainmeter.kak"
 
 bundle smarttab.kak "https://github.com/andreyorst/smarttab.kak"

@@ -10,7 +10,7 @@ plugin installation directory. By default, this is `%val{config}/bundle`, which 
 `~/.config/kak/bundle/`, but this can be changed by setting the `bundle_path` option. The following assumes
 the default location:
 
-```
+```sh
 mkdir -p $HOME/.config/kak/bundle/
 git clone https://github.com/jdugan6240/kak-bundle $HOME/.config/kak/bundle/kak-bundle
 ```
@@ -18,14 +18,14 @@ git clone https://github.com/jdugan6240/kak-bundle $HOME/.config/kak/bundle/kak-
 This isn't enough by itself, though &mdash; Kakoune needs to be told to load kak-bundle. This is done by adding the following
 line to your kakrc:
 
-```
+```kak
 source "%val{config}/bundle/kak-bundle/rc/kak-bundle.kak"
 bundle-noload kak-bundle https://github.com/jdugan6240/kak-bundle
 ```
 
 Alternatively, the need to load kak-bundle manually can be avoided by placing the kak-bundle repo in your autoload:
 
-```
+```sh
 mkdir -p $HOME/.config/kak/autoload/bundle/
 git clone https://github.com/jdugan6240/kak-bundle $HOME/.config/kak/autoload/bundle/kak-bundle
 ```
@@ -36,26 +36,30 @@ This option doesn't allow kak-bundle to manage itself, however.
 
 Plugins are registered and loaded with the `bundle` command.
 
-```
+```kak
 bundle kak-lsp https://github.com/kak-lsp/kak-lsp %{
   # Configure here...
   hook global KakEnd .* lsp-exit
-} %{
-  # Post-install code here...
-  cargo install --locked --force --path .
 }
 ```
 The first parameter is the name of the plugin, and the second parameter is an installer (usually a URL), which must lead to a repository
-matching the name of the plugin. The third and fourth parameters are optional, and contain a code block that runs when the plugin
-is loaded, and a shell code block that runs after the plugin is installed, respectively (a compilation step, for example). Keep in mind that
-if the post-install shell block is defined, the configuration block must be defined as well.
+matching the name of the plugin. The third parameter is optional, and contains a kakscript block that runs when the plugin is loaded.
+
+Some plugins, such as the above `kak-lsp`, require shell code to be executed after being installed - a compilation step, for
+example. This is supported with the `bundle-install-hook` command, as follows:
+```kak
+bundle-install-hook kak-lsp %{
+  # Any shell code that needs to be run goes here...
+  cargo install --locked --force --path .
+}
+```
 
 It may be desirable, however, in some scenarios to grab a plugin from a specific branch or filepath. For this, **kak-bundle**
 has the concept of "installers", or custom shell code that is run to create a directory in `bundle_path` containing the
 plugin code. These are run in the `bundle_path` directory. Installers allow for all sorts of options regarding plugin
 install. Some examples are shown below:
 
-```
+```kak
 # extract a specific branch / tag of a plugin repository:
 bundle my-plugin 'git clone -b BRANCH_OR_TAG ... $URL'
 
@@ -70,7 +74,7 @@ As with URLs, the name of the repository/directory must match the plugin name sp
 Sometimes, it is not desirable to load every script a plugin has to offer, or they need to be loaded in a specific order.
 For this use case, kak-bundle allows for specifying custom loading logic for a plugin with the `bundle-customload` command.
 An example of this for [kakoune-extra](https://github.com/lenormf/kakoune-extra):
-```
+```kak
 bundle-customload kakoune-extra https://github.com/lenormf/kakoune-extra %{
   # Custom loading logic here...
   source "%opt{bundle_path}/kakoune-extra/fzf.kak"
@@ -78,21 +82,16 @@ bundle-customload kakoune-extra https://github.com/lenormf/kakoune-extra %{
   source "%opt{bundle_path}/kakoune_extra/utils.kak"
 
   # Configuration goes here too...
-} %{
-  # Post-install code here...
 }
 ```
 In this case, three arguments are required - the plugin name, the installer, and the code block containing the custom
-loading logic. The fourth argument is optional, and would contain shell code to run a compilation step or similar.
+loading logic.
 
 Finally, kak-bundle provides a command, `bundle-noload`, to register a plugin without loading it. This is useful, for example,
 for testing how plugins behave when other plugins aren't loaded. An example:
-```
+```kak
 bundle-noload kak-lsp https://github.com/kak-lsp/kak-lsp.git %{
   # This configuration code isn't run on startup...
-} %{
-  # Post-install code here...
-  cargo install --locked --force --path .
 }
 ```
 As before, the installer specified in the second argument must match the plugin name specified in the first argument.
@@ -107,7 +106,7 @@ plugins as arguments to install/uninstall selectively.
 
 Plugins may receive updates after being installed. Use the `bundle-install` command to update all installed plugins, or
 pass specific plugins as arguments to update selectively:
-```
+```kak
 bundle-install                        # update all plugins
 bundle-install kak-lsp kakoune-extra  # update individual plugins
 ```
@@ -119,9 +118,9 @@ bundle-install kak-lsp kakoune-extra  # update individual plugins
 **kak-bundle** doesn't support colorschemes by default, but they're pretty easy to support by running post-install code. Take
 this example for [one.kak](https://github.com/raiguard/one.kak):
 
-```
-bundle-noload one.kak https://github.com/raiguard/one.kak %{
-} %{
+```kak
+bundle-noload one.kak https://github.com/raiguard/one.kak # Notice, no config block
+bundle-install-hook one.kak %{
   # Post-install code here...
   mkdir -p ${kak_config}/colors
   ln -sf "${kak_opt_bundle_path}/one.kak" "${kak_config}/colors/"
@@ -138,7 +137,7 @@ conflict with other installed colorschemes.
 The process of installing and loading **kak-bundle** can be automated, at a slight load time cost, by adding the following to
 the top of your kakrc:
 
-```
+```kak
 evaluate-commands %sh{
   # We're assuming the default bundle_path here...
   plugins="$kak_config/bundle"
@@ -158,7 +157,7 @@ It can be desirable to update plugins outside of Kakoune - say, as part of a sys
 provides support for this in the form of its `bundle-after-install` hook, which is a user-defined hook that is triggered
 upon completion of `bundle-install`. Place the following in your kakrc:
 
-```
+```kak
 hook global User bundle-after-install %{
   # This is run after bundle-install completes.
   # This could be for automatically deleting the *bundle* buffer, or some other similar action.
@@ -186,13 +185,13 @@ default. They are:
 
 **kak-bundle** is designed for speed, and runs no shell code on startup. This makes its load time pretty close to optimal.
 
-The following load times were obtained using the benchmark suite in the benchmark/ directory on the author's machine:
+The following load times were obtained using the benchmark suite in the benchmark/ directory on the author's machine (your exact times may vary):
 
 | Plugin Manager | Mean [ms]     | Min [ms] | Max [ms] |
 |----------------|---------------|----------|----------|
-| kak-bundle     | 171.8 +- 14.4 | 150.1    | 193.8    |
-| [cork.kak](https://github.com/topisani/cork.kak)       | 176.5 +- 19.3 | 156.0    | 213.3    |
-| [plug.kak](https://github.com/andreyorst/plug.kak)       | 264.3 +- 35.1 | 220.4    | 313.6    |
+| kak-bundle     | 237.5 +- 17.8 | 218.0    | 278.4    |
+| [cork.kak](https://github.com/topisani/cork.kak)       | 255.8 +- 10.6 | 244.4    | 280.4    |
+| [plug.kak](https://github.com/andreyorst/plug.kak)       | 375.4 +- 24.1 | 346.4    | 425.0    |
 
 ## License
 
