@@ -104,6 +104,18 @@ After this is done, the registered plugins can be installed with the `bundle-ins
 can be uninstalled with the `bundle-clean` command. `bundle-install` and `bundle-clean` can also accept individual
 plugins as arguments to install/uninstall selectively.
 
+Some plugins, when installed, leave behind artifacts that aren't removed by just removing the plugin repository (`kak-lsp` for example).
+For this use case, `kak-bundle` supports defining cleaners, which is shell code run after running the `bundle-clean` command. For example:
+
+```kak
+bundle-cleaner kak-lsp %{
+  rm ~/.cargo/bin/kak-lsp
+}
+```
+
+Now, when running `bundle-clean kak-lsp`, in addition to the plugin repo being removed from `bundle_path`, the `kak-lsp` binary
+is removed as well.
+
 Plugins may receive updates after being installed. Use the `bundle-install` command to update all installed plugins, or
 pass specific plugins as arguments to update selectively:
 ```kak
@@ -124,6 +136,11 @@ bundle-install-hook one.kak %{
   # Post-install code here...
   mkdir -p ${kak_config}/colors
   ln -sf "${kak_opt_bundle_path}/one.kak" "${kak_config}/colors/"
+}
+# The below command is optional, but allows for cleanly uninstalling the colorscheme
+bundle-cleaner one.kak %{
+  # Remove the symlink
+  rm -rf "${kak_config}/colors/one.kak"
 }
 # Set the colorscheme later on in the kakrc...
 colorscheme one-dark

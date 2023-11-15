@@ -12,6 +12,7 @@ declare-option -docstring %{
 # a bunch of installer and post-install-hook files to avoid breaking bundle-install.
 declare-option -hidden str bundle_install_hooks
 declare-option -hidden str bundle_installers
+declare-option -hidden str bundle_cleaners
 
 declare-option -hidden str-list bundle_plugins
 declare-option -hidden str bundle_path "%val{config}/bundle"
@@ -45,7 +46,8 @@ declare-option -hidden str bundle_sh_code %{
         dict=
         case $2 in
             0) dict=$kak_opt_bundle_installers ;; # We're grabbing an installer
-            *) dict=$kak_opt_bundle_install_hooks ;; # We're grabbing a post-install hook
+            1) dict=$kak_opt_bundle_install_hooks ;; # We're grabbing a post-install hook
+            2) dict=$kak_opt_bundle_cleaners ;; # We're grabbing a cleaner
         esac
         IFS='🦀'
         found=0
@@ -156,11 +158,15 @@ declare-option -hidden str bundle_sh_code %{
 
 hook global WinSetOption filetype=kak %@
     try %$
-        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-install-hook|bundle-customload|bundle-noload|bundle)\s' 0:keyword
+        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-cleaner|bundle-install-hook|bundle-customload|bundle-noload|bundle)\s' 0:keyword
         add-highlighter shared/kakrc/bundle_install_hook1 region -recurse '\{' '\bbundle-install-hook\K\h[\w\.]+\K\h%\{' '\}' ref sh 
         add-highlighter shared/kakrc/bundle_install_hook2 region -recurse '\[' '\bbundle-install-hook\K\h[\w\.]+\K\h%\[' '\]' ref sh 
         add-highlighter shared/kakrc/bundle_install_hook3 region -recurse '\(' '\bbundle-install-hook\K\h[\w\.]+\K\h%\(' '\)' ref sh 
-        add-highlighter shared/kakrc/bundle_install_hook4 region -recurse '\<' '\bbundle-install-hook\K\h[\w\.]+\K\h%\<' '\>' ref sh 
+        add-highlighter shared/kakrc/bundle_install_hook4 region -recurse '<' '\bbundle-install-hook\K\h[\w\.]+\K\h%<' '>' ref sh 
+        add-highlighter shared/kakrc/bundle_cleaner1 region -recurse '\{' '\bbundle-cleaner\K\h[\w\.]+\K\h%\{' '\}' ref sh 
+        add-highlighter shared/kakrc/bundle_cleaner2 region -recurse '\[' '\bbundle-cleaner\K\h[\w\.]+\K\h%\[' '\]' ref sh 
+        add-highlighter shared/kakrc/bundle_cleaner3 region -recurse '\(' '\bbundle-cleaner\K\h[\w\.]+\K\h%\(' '\)' ref sh 
+        add-highlighter shared/kakrc/bundle_cleaner4 region -recurse '<' '\bbundle-cleaner\K\h[\w\.]+\K\h%<' '>' ref sh
     $ catch %$
         echo -debug "Error: kak-bundle: can't declare highlighters for 'kak' filetype: %val{error}"
     $
@@ -180,6 +186,12 @@ define-command -hidden bundle-add-install-hook -params 2 %{
     set-option -add global bundle_install_hooks %arg{2}
     set-option -add global bundle_install_hooks 🦀
 }
+define-command -hidden bundle-add-cleaner -params 2 %{
+    set-option -add global bundle_cleaners %arg{1}
+    set-option -add global bundle_cleaners 🦀
+    set-option -add global bundle_cleaners %arg{2}
+    set-option -add global bundle_cleaners 🦀
+}
 
 # HACK to allow comparing strings
 define-command -hidden bundle-list-len-eq0 -params 0 nop -override
@@ -195,7 +207,6 @@ define-command -hidden bundle-streq -params .. %{
 define-command bundle -params 2..4 -docstring %{
     bundle <plugin-name> <installer> [config] [post-install code] - Register and load plugin
 } %{
-    echo -debug "Arg4: ""%arg{4}"""
     set-option -add global bundle_plugins %arg{1}
     bundle-add-installer %arg{1} %arg{2}
     try %{
@@ -250,15 +261,36 @@ define-command bundle-install-hook -params 2 -docstring %{
     bundle-add-install-hook %arg{1} %arg{2}
 }
 
+define-command bundle-cleaner -params 2 -docstring %{
+    bundle-cleaner <plugin-name> <cleaner> - Define shell code to be run after uninstalling (cleaning) plugin
+} %{
+    bundle-add-cleaner %arg{1} %arg{2}
+}
+
 define-command bundle-clean -params .. -docstring %{
     bundle-clean [plugins] - Uninstall selected plugins (or all registered plugins if none selected)
 } -shell-script-candidates %{
     for plugin in $kak_opt_bundle_plugins; do printf "$plugin\n"; done
 } %{
     evaluate-commands %sh{
+        set -u; exec 3>&1 1>&2
+        eval "$kak_opt_bundle_sh_code"
+        # "$kak_command_fifo"
+        # "$kak_response_fifo"
+        # "$kak_opt_bundle_plugins"
+        # "$kak_opt_bundle_cleaners"
+        # "$kak_opt_bundle_path"
+        # "$kak_config"
+        # "$kak_opt_bundle_parallel"
+        # "$kak_client"
+        # "$kak_session"
+
         [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
         for plugin; do
             rm -rf "$kak_opt_bundle_path/$plugin" "$kak_opt_bundle_path/$plugin-load.kak"
+            cleaner=$(get_dict_value $plugin 2)
+            printf "echo -debug %s" "$cleaner"
+            eval "$cleaner"
         done
     }
 }
