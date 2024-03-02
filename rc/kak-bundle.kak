@@ -156,7 +156,7 @@ declare-option -hidden str bundle_sh_code %{
 
 # Highlighters
 
-hook global WinSetOption filetype=kak %@
+hook global ModuleLoaded kak %@
     try %$
         add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-cleaner|bundle-install-hook|bundle-customload|bundle-noload|bundle)\s' 0:keyword
         add-highlighter shared/kakrc/bundle_install_hook1 region -recurse '\{' '\bbundle-install-hook\K\h[\w\.]+\K\h%\{' '\}' ref sh 
