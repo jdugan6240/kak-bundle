@@ -13,6 +13,7 @@ declare-option -docstring %{
 declare-option -hidden str bundle_install_hooks
 declare-option -hidden str bundle_installers
 declare-option -hidden str bundle_cleaners
+declare-option -hidden str bundle_updaters
 
 declare-option -hidden str-list bundle_plugins
 declare-option -hidden str bundle_path "%val{config}/bundle"
@@ -48,6 +49,7 @@ declare-option -hidden str bundle_sh_code %{
             0) dict=$kak_opt_bundle_installers ;; # We're grabbing an installer
             1) dict=$kak_opt_bundle_install_hooks ;; # We're grabbing a post-install hook
             2) dict=$kak_opt_bundle_cleaners ;; # We're grabbing a cleaner
+            3) dict=$kak_opt_bundle_updaters ;; # We're grabbing an updater
         esac
         IFS='🦀'
         found=0
@@ -158,7 +160,7 @@ declare-option -hidden str bundle_sh_code %{
 
 hook global ModuleLoaded kak %@
     try %$
-        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-cleaner|bundle-install-hook|bundle-customload|bundle-noload|bundle)\s' 0:keyword
+        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-update|bundle-cleaner|bundle-updater|bundle-install-hook|bundle-customload|bundle-noload|bundle)\s' 0:keyword
         add-highlighter shared/kakrc/bundle_install_hook1 region -recurse '\{' '\bbundle-install-hook\K\h[\w\.]+\K\h%\{' '\}' ref sh 
         add-highlighter shared/kakrc/bundle_install_hook2 region -recurse '\[' '\bbundle-install-hook\K\h[\w\.]+\K\h%\[' '\]' ref sh 
         add-highlighter shared/kakrc/bundle_install_hook3 region -recurse '\(' '\bbundle-install-hook\K\h[\w\.]+\K\h%\(' '\)' ref sh 
@@ -167,6 +169,10 @@ hook global ModuleLoaded kak %@
         add-highlighter shared/kakrc/bundle_cleaner2 region -recurse '\[' '\bbundle-cleaner\K\h[\w\.]+\K\h%\[' '\]' ref sh 
         add-highlighter shared/kakrc/bundle_cleaner3 region -recurse '\(' '\bbundle-cleaner\K\h[\w\.]+\K\h%\(' '\)' ref sh 
         add-highlighter shared/kakrc/bundle_cleaner4 region -recurse '<' '\bbundle-cleaner\K\h[\w\.]+\K\h%<' '>' ref sh
+        add-highlighter shared/kakrc/bundle_updater1 region -recurse '\{' '\bbundle-updater\K\h[\w\.]+\K\h%\{' '\}' ref sh 
+        add-highlighter shared/kakrc/bundle_updater2 region -recurse '\[' '\bbundle-updater\K\h[\w\.]+\K\h%\[' '\]' ref sh 
+        add-highlighter shared/kakrc/bundle_updater3 region -recurse '\(' '\bbundle-updater\K\h[\w\.]+\K\h%\(' '\)' ref sh 
+        add-highlighter shared/kakrc/bundle_updater4 region -recurse '<' '\bbundle-updater\K\h[\w\.]+\K\h%<' '>' ref sh
     $ catch %$
         echo -debug "Error: kak-bundle: can't declare highlighters for 'kak' filetype: %val{error}"
     $
@@ -191,6 +197,12 @@ define-command -hidden bundle-add-cleaner -params 2 %{
     set-option -add global bundle_cleaners 🦀
     set-option -add global bundle_cleaners %arg{2}
     set-option -add global bundle_cleaners 🦀
+}
+define-command -hidden bundle-add-updater -params 2 %{
+    set-option -add global bundle_updaters %arg{1}
+    set-option -add global bundle_updaters 🦀
+    set-option -add global bundle_updaters %arg{2}
+    set-option -add global bundle_updaters 🦀
 }
 
 # HACK to allow comparing strings
@@ -267,6 +279,12 @@ define-command bundle-cleaner -params 2 -docstring %{
     bundle-add-cleaner %arg{1} %arg{2}
 }
 
+define-command bundle-updater -params 2 -docstring %{
+    bundle-updater <plugin-name> <cleaner> - Define shell code to be run to update plugin
+} %{
+    bundle-add-updater %arg{1} %arg{2}
+}
+
 define-command bundle-clean -params .. -docstring %{
     bundle-clean [plugins] - Uninstall selected plugins (or all registered plugins if none selected)
 } -shell-script-candidates %{
@@ -278,7 +296,9 @@ define-command bundle-clean -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_cleaners"
+        # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_install_hooks"
+        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -309,6 +329,7 @@ define-command bundle-install -params .. -docstring %{
         # "$kak_opt_bundle_plugins"
         # "$kak_opt_bundle_installers"
         # "$kak_opt_bundle_install_hooks"
+        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -335,6 +356,56 @@ define-command bundle-install -params .. -docstring %{
                 (*' '*) vvc eval "$installer" ;;
                 (*) eval "vvc git clone \"\$installer\"" ;;
             esac
+        done
+        bundle_tmp_log_wait
+        > "$tmp_dir"/.install-done
+        ) >/dev/null 2>&1 3>&- &
+    }
+}
+
+
+define-command bundle-update -params .. -docstring %{
+    bundle-update [plugins] - Update selected plugins (or all registered plugins if none selected)
+} -shell-script-candidates %{
+    for plugin in $kak_opt_bundle_plugins; do printf "$plugin\n"; done
+} %{
+    set-option global bundle_plugins_to_install ""
+    evaluate-commands %sh{
+        set -u; exec 3>&1 1>&2
+        eval "$kak_opt_bundle_sh_code"
+        # "$kak_command_fifo"
+        # "$kak_response_fifo"
+        # "$kak_opt_bundle_plugins"
+        # "$kak_opt_bundle_install_hooks"
+        # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_updaters"
+        # "$kak_opt_bundle_path"
+        # "$kak_config"
+        # "$kak_opt_bundle_parallel"
+        # "$kak_client"
+        # "$kak_session"
+
+        bundle_status_init
+        bundle_cd
+        [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
+
+        for plugin
+        do
+            printf "set-option -add global bundle_plugins_to_install %s\n" "$plugin" >&3
+        done
+
+        #Install the plugins
+        (
+        for plugin
+        do
+            bundle_cd
+            cd $plugin
+            updater=$(get_dict_value $plugin 3)
+            if [ -z $updater ]; then
+                eval "vvc git pull"
+            else
+                vvc eval "$updater"
+            fi
         done
         bundle_tmp_log_wait
         > "$tmp_dir"/.install-done
@@ -376,8 +447,9 @@ define-command bundle-install-hook-update-hook -params .. %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_installers"
         # "$kak_opt_bundle_install_hooks"
+        # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -417,8 +489,9 @@ define-command bundle-install-hook-update-hook -params .. %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_installers"
         # "$kak_opt_bundle_install_hooks"
+        # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -450,8 +523,9 @@ define-command bundle-status-update-hook -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_installers"
         # "$kak_opt_bundle_install_hooks"
+        # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"

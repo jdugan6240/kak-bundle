@@ -116,11 +116,24 @@ bundle-cleaner kak-lsp %{
 Now, when running `bundle-clean kak-lsp`, in addition to the plugin repo being removed from `bundle_path`, the `kak-lsp` binary
 is removed as well.
 
-Plugins may receive updates after being installed. Use the `bundle-install` command to update all installed plugins, or
+Plugins may receive updates after being installed. Use the `bundle-update` command to update all installed plugins, or
 pass specific plugins as arguments to update selectively:
 ```kak
-bundle-install                        # update all plugins
-bundle-install kak-lsp kakoune-extra  # update individual plugins
+bundle-update                         # update all plugins
+bundle-update kak-lsp kakoune-extra   # update individual plugins
+```
+
+`bundle-update` by default runs `git pull` within the plugin directory, but this may not be appropriate for all plugins - say,
+plugins installed via symlinking or for plugins installed with a shallow clone (basically, a truncated git history). In this case,
+`kak-bundle` offers the ability to set updaters for each plugin - shell code run in place of `git pull` whenever updating a plugin. This
+is done with the `bundle-updater` command as follows (in this case, a shallow-cloned `kak-lsp`):
+```kak
+bundle-updater kak-lsp %{
+ # This is just an example. There's likely more efficient ways to do this.
+ cd ../
+ rm -rf kak-lsp
+ git clone --depth=1 https://github.com/kak-lsp/kak-lsp
+}
 ```
 
 ## Tips and Tricks
