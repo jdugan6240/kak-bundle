@@ -225,4 +225,4 @@ The following load times were obtained using the benchmark suite in the benchmar
 
 ## License
 
-This plugin is "licensed" under the Unlicense.
+This plugin is licensed under the BSD0 license.
