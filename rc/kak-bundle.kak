@@ -470,11 +470,11 @@ define-command bundle-install-hook-update-hook -params .. %{
 
         hook_tmp_file=$tmp_dir/bundle-install-hooks-output
 
-        hook_output=$(cat $hook_tmp_file)
+        hook_output=$(cat $hook_tmp_file | sed 's/"/""/g')
 
         for line in "$hook_output"; do
             printf >&3 '%s\n' \
-                "set-register dquote %{$line}" \
+                "set-register dquote \"$line\"" \
                 "exec %{o} %{<esc>} %{p}" \
                 "set-register dquote %{}"
         done
