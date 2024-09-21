@@ -39,7 +39,7 @@ Plugins are registered and loaded with the `bundle` command.
 ```kak
 bundle kak-lsp https://github.com/kak-lsp/kak-lsp %{
   # Configure here...
-  hook global KakEnd .* lsp-exit
+  map global user l %{:enter-user-mode lsp<ret>} -docstring "LSP mode"
 }
 ```
 The first parameter is the name of the plugin, and the second parameter is an installer (usually a URL), which must lead to a repository
