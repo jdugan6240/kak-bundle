@@ -296,6 +296,7 @@ define-command bundle-clean -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
+        # "$kak_opt_bundle_cleaners"
         # "$kak_opt_bundle_installers"
         # "$kak_opt_bundle_install_hooks"
         # "$kak_opt_bundle_updaters"
