@@ -355,7 +355,7 @@ define-command bundle-install -params .. -docstring %{
             rm -Rf "$plugin"
             case "$installer" in
                 (*' '*) vvc eval "$installer" ;;
-                (*) eval "vvc git clone \"\$installer\"" ;;
+                (*) eval "vvc git clone \"\$installer\" \"$plugin\"" ;;
             esac
         done
         bundle_tmp_log_wait
