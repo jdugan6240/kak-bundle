@@ -37,9 +37,12 @@ declare-option -hidden str bundle_sh_code %{
 
     get_plugins(){ # get plugins 1 for ones to be removed, 2 for ones to be installed
         mode=3$1
+        all_plugins=$(mktemp)
+        echo $kak_opt_bundle_plugins | tr ' ' '\n'| sort > $all_plugins
         bundle_cd
         find -L . -mindepth 1 -maxdepth 1 -type d -printf "%f\n" |
-        sort | comm -$mode <(echo $kak_opt_bundle_plugins | tr ' ' '\n'| sort ) - | tr '\n' ' '
+        sort | comm -$mode "$all_plugins" - | tr '\n' ' '
+        rm -f $all_plugins
     }
 
     setup_load_file() { # Create the plugin load file
