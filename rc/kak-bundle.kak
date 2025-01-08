@@ -54,7 +54,7 @@ declare-option -hidden str bundle_sh_code %{
 		name=$1
 		cleaner=$(get_dict_value $name 2)
 		if [ -n "$cleaner" ]; then
-            echo "$cleaner" > "$kak_opt_bundle_path/$name-clean.kak"
+            echo "$cleaner" > "$kak_opt_bundle_path/$name-clean.sh"
         fi
     }
 
@@ -326,11 +326,11 @@ define-command bundle-clean -params .. -docstring %{
         	eval set -- "$(get_plugins 1)"
         for plugin; do
             rm -rf "$kak_opt_bundle_path/$plugin" "$kak_opt_bundle_path/$plugin-load.kak"
-            if [ -f "$kak_opt_bundle_path/$plugin-clean.kak" ]; then
-                cleaner=$(cat "$kak_opt_bundle_path/$plugin-clean.kak")
+            if [ -f "$kak_opt_bundle_path/$plugin-clean.sh" ]; then
+                cleaner=$(cat "$kak_opt_bundle_path/$plugin-clean.sh")
                 printf "echo -debug %s" "$cleaner"
                 eval "$cleaner"
-                rm "$kak_opt_bundle_path/$plugin-clean.kak"
+                rm "$kak_opt_bundle_path/$plugin-clean.sh"
             fi
         done
     }
