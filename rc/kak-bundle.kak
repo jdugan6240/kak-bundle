@@ -402,6 +402,7 @@ define-command bundle-update -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
+        # "$kak_opt_bundle_cleaners"
         # "$kak_opt_bundle_install_hooks"
         # "$kak_opt_bundle_installers"
         # "$kak_opt_bundle_updaters"
@@ -428,7 +429,7 @@ define-command bundle-update -params .. -docstring %{
             cd $plugin
             updater=$(get_dict_value $plugin 3)
             if [ -z $updater ]; then
-                updater = "git pull"
+                updater="git pull"
             fi
             vvc eval "$updater;setup_clean_file $plugin"
         done
