@@ -428,10 +428,9 @@ define-command bundle-update -params .. -docstring %{
             cd $plugin
             updater=$(get_dict_value $plugin 3)
             if [ -z $updater ]; then
-                eval "vvc git pull"
-            else
-                vvc eval "$updater"
+                updater = "git pull"
             fi
+            vvc eval "$updater;setup_clean_file $plugin"
         done
         bundle_tmp_log_wait
         > "$tmp_dir"/.install-done
