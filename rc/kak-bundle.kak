@@ -178,7 +178,7 @@ declare-option -hidden str bundle_sh_code %{
 
 hook global ModuleLoaded kak %@
     try %$
-        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-update|bundle-cleaner|bundle-updater|bundle-install-hook|bundle-customload|bundle-noload|bundle)\s' 0:keyword
+        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-update|bundle-cleaner|bundle-updater|bundle-install-hook|bundle-customload|bundle-noload|bundle|bundle-theme)\s' 0:keyword
         add-highlighter shared/kakrc/bundle_install_hook1 region -recurse '\{' '\bbundle-install-hook\K\h[\w\.]+\K\h%\{' '\}' ref sh 
         add-highlighter shared/kakrc/bundle_install_hook2 region -recurse '\[' '\bbundle-install-hook\K\h[\w\.]+\K\h%\[' '\]' ref sh 
         add-highlighter shared/kakrc/bundle_install_hook3 region -recurse '\(' '\bbundle-install-hook\K\h[\w\.]+\K\h%\(' '\)' ref sh 
@@ -599,3 +599,18 @@ define-command bundle-status-update-hook -params .. -docstring %{
         exec HLHL
     }  # re-trigger
 } -hidden
+
+define-command -params 2 \
+    -docstring %{
+        bundle-theme <theme-name> <installer> - Register and load color theme
+    } bundle-theme %{
+    bundle-noload %arg{1} %arg{2}
+    bundle-install-hook %arg{1} %sh{
+      mkdir -p ${kak_config}/colors
+      ln -sf "${kak_opt_bundle_path}/$1" "${kak_config}/colors/"
+    }
+    bundle-cleaner %arg{1} %{
+      # Remove the symlink
+      rm -rf "${kak_config}/colors/$1"
+    }
+}
