@@ -100,9 +100,10 @@ Once these commands are written in your kakrc for the first time, the kakrc must
 about the registered plugins. To avoid collisions with redefining existing commands/options, this is best done by restarting
 Kakoune.
 
-After this is done, the registered plugins can be installed with the `bundle-install` command, and installed plugins
-can be uninstalled with the `bundle-clean` command. `bundle-install` and `bundle-clean` can also accept individual
-plugins as arguments to install/uninstall selectively.
+After this is done, the `bundle-install` command will install all registered but uninstalled plugins.
+The `bundle-clean` command will uninstall all plugins no longer registered.
+`bundle-install` and `bundle-clean` can also accept individual plugins as arguments to install/uninstall selectively.
+Calling bundle-install on an already installed plugin will reinstall it.
 
 Some plugins, when installed, leave behind artifacts that aren't removed by just removing the plugin repository (`kak-lsp` for example).
 For this use case, `kak-bundle` supports defining cleaners, which is shell code run after running the `bundle-clean` command. For example:

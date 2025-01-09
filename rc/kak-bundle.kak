@@ -35,12 +35,30 @@ declare-option -hidden str bundle_sh_code %{
         cd "$kak_opt_bundle_path"
     }
 
+    get_plugins(){ # get plugins 1 for ones to be removed, 2 for ones to be installed
+        mode=3$1
+        all_plugins=$(mktemp)
+        echo $kak_opt_bundle_plugins | tr ' ' '\n'| sort > $all_plugins
+        bundle_cd
+        find -L . -mindepth 1 -maxdepth 1 -type d -printf "%f\n" |
+        sort | comm -$mode "$all_plugins" - | tr '\n' ' '
+        rm -f $all_plugins
+    }
+
     setup_load_file() { # Create the plugin load file
         name=$1
         folder="$kak_opt_bundle_path/$name"
 
         find -L "$folder" -type f -name '*\.kak' | sed 's/.*/source "&"/' > "$kak_opt_bundle_path/$name-load.kak"
         printf "trigger-user-hook bundle-loaded=$name" >> "$kak_opt_bundle_path/$name-load.kak"
+    }
+
+    setup_clean_file() { # sets up a cleanup file if a cleaner exists
+		name=$1
+		cleaner=$(get_dict_value $name 2)
+		if [ -n "$cleaner" ]; then
+            echo "$cleaner" > "$kak_opt_bundle_path/$name-clean.sh"
+        fi
     }
 
     get_dict_value() { # Retrieves either the installer or post-install hook for a given plugin
@@ -305,13 +323,18 @@ define-command bundle-clean -params .. -docstring %{
         # "$kak_opt_bundle_parallel"
         # "$kak_client"
         # "$kak_session"
-
-        [ $# != 0 ] || eval set -- "$kak_quoted_opt_bundle_plugins"
+        bundle_status_init
+		
+        [ $# != 0 ] ||
+        	eval set -- "$(get_plugins 1)"
         for plugin; do
             rm -rf "$kak_opt_bundle_path/$plugin" "$kak_opt_bundle_path/$plugin-load.kak"
-            cleaner=$(get_dict_value $plugin 2)
-            printf "echo -debug %s" "$cleaner"
-            eval "$cleaner"
+            if [ -f "$kak_opt_bundle_path/$plugin-clean.sh" ]; then
+                cleaner=$(cat "$kak_opt_bundle_path/$plugin-clean.sh")
+                printf "echo -debug %s" "$cleaner"
+                eval "$cleaner"
+                rm "$kak_opt_bundle_path/$plugin-clean.sh"
+            fi
         done
     }
 }
@@ -329,6 +352,7 @@ define-command bundle-install -params .. -docstring %{
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
         # "$kak_opt_bundle_installers"
+        # "$kak_opt_bundle_cleaners"
         # "$kak_opt_bundle_install_hooks"
         # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
@@ -339,8 +363,11 @@ define-command bundle-install -params .. -docstring %{
 
         bundle_status_init
         bundle_cd
-        [ $# != 0 ] || eval set -- "$kak_opt_bundle_plugins"
 
+        # only install not previously installed plugins
+        [ $# != 0 ] ||
+        	eval set -- "$(get_plugins 2)"
+		
         for plugin
         do
             printf "set-option -add global bundle_plugins_to_install %s\n" "$plugin" >&3
@@ -354,9 +381,10 @@ define-command bundle-install -params .. -docstring %{
             installer=$(get_dict_value $plugin 0)
             rm -Rf "$plugin"
             case "$installer" in
-                (*' '*) vvc eval "$installer" ;;
-                (*) eval "vvc git clone \"\$installer\" \"$plugin\"" ;;
+                (*' '*) :;;
+                (*) installer="git clone $installer $plugin" ;;
             esac
+            vvc eval "$installer;setup_clean_file $plugin"
         done
         bundle_tmp_log_wait
         > "$tmp_dir"/.install-done
@@ -377,6 +405,7 @@ define-command bundle-update -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
+        # "$kak_opt_bundle_cleaners"
         # "$kak_opt_bundle_install_hooks"
         # "$kak_opt_bundle_installers"
         # "$kak_opt_bundle_updaters"
@@ -403,10 +432,9 @@ define-command bundle-update -params .. -docstring %{
             cd $plugin
             updater=$(get_dict_value $plugin 3)
             if [ -z $updater ]; then
-                eval "vvc git pull"
-            else
-                vvc eval "$updater"
+                updater="git pull"
             fi
+            vvc eval "$updater;setup_clean_file $plugin"
         done
         bundle_tmp_log_wait
         > "$tmp_dir"/.install-done
