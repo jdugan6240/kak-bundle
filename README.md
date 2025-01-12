@@ -144,8 +144,13 @@ bundle-updater kak-lsp %{
 
 ### Colorschemes
 
-**kak-bundle** doesn't support colorschemes by default, but they're pretty easy to support by running post-install code. Take
-this example for [one.kak](https://github.com/raiguard/one.kak):
+colorschemes in **kak-bundle** are registered using the `bundle-theme` command, which is a pretty simple wrapper.
+If we take the example of [one.kak](https://github.com/raiguard/one.kak), then we can write
+
+```kak
+bundle-theme one.kak https://github.com/raiguard/one.kak
+```
+which is equivalent to
 
 ```kak
 bundle-noload one.kak https://github.com/raiguard/one.kak # Notice, no config block
@@ -159,12 +164,8 @@ bundle-cleaner one.kak %{
   # Remove the symlink
   rm -rf "${kak_config}/colors/one.kak"
 }
-# Set the colorscheme later on in the kakrc...
-colorscheme one-dark
 ```
-
-The `bundle-noload` command is necessary in this case, as otherwise the colorscheme would be loaded immediately, which may
-conflict with other installed colorschemes.
+once we've installed the colorscheme we can simply load it with `colorscheme one-dark` like any other colorscheme
 
 ### Bootstrap kak-bundle
 
