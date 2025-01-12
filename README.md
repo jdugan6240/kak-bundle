@@ -227,6 +227,10 @@ The following load times were obtained using the benchmark suite in the benchmar
 | [cork.kak](https://github.com/topisani/cork.kak)       | 255.8 +- 10.6 | 244.4    | 280.4    |
 | [plug.kak](https://github.com/andreyorst/plug.kak)       | 375.4 +- 24.1 | 346.4    | 425.0    |
 
+## Contributing
+
+Any kind of contributions are welcome! Please read [CONTRIBUTING.md](https://codeberg.org/jdugan6240/kak-bundle/src/branch/master/CONTRIBUTING.md) before doing so.
+
 ## License
 
 This plugin is licensed under the BSD0 license.
