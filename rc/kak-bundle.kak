@@ -2,19 +2,6 @@ declare-option -docstring %{
     Maximum install jobs to run in parallel
 } int bundle_parallel 4
 
-# There's unfortunately not an easy way to create a dictionary that
-# contains strings with spaces in POSIX shell. So, essentially what
-# we do here is define strings that consist of 🦀 delimited values,
-# and have each value follow its key in the list. It's not pretty by
-# any means, and requires some nontrivial shell gymnastics, but it works.
-# This will obviously break if one of the values contains a 🦀, but it's
-# a small price to pay for not requiring bundle-clean to leave behind
-# a bunch of installer and post-install-hook files to avoid breaking bundle-install.
-declare-option -hidden str bundle_install_hooks
-declare-option -hidden str bundle_installers
-declare-option -hidden str bundle_cleaners
-declare-option -hidden str bundle_updaters
-
 declare-option -hidden str-list bundle_plugins
 declare-option -hidden str bundle_path "%val{config}/bundle"
 
@@ -53,47 +40,33 @@ declare-option -hidden str bundle_sh_code %{
         printf "trigger-user-hook bundle-loaded=$name" >> "$kak_opt_bundle_path/$name-load.kak"
     }
 
-    setup_clean_file() { # sets up a cleanup file if a cleaner exists
-		name=$1
-		cleaner=$(get_dict_value $name 2)
-		if [ -n "$cleaner" ]; then
-            echo "$cleaner" > "$kak_opt_bundle_path/$name-clean.sh"
+    get_bundle_file() {
+        file=$1
+        if [ -f "$file" ]; then
+            printf "$(cat $file)"
+        else
+            printf ""
         fi
     }
-
-    get_dict_value() { # Retrieves either the installer or post-install hook for a given plugin
-        dict=
-        case $2 in
-            0) dict=$kak_opt_bundle_installers ;; # We're grabbing an installer
-            1) dict=$kak_opt_bundle_install_hooks ;; # We're grabbing a post-install hook
-            2) dict=$kak_opt_bundle_cleaners ;; # We're grabbing a cleaner
-            3) dict=$kak_opt_bundle_updaters ;; # We're grabbing an updater
-        esac
-        IFS='🦀'
-        found=0
-        returned_val=''
-        for val in $dict; do
-            # If we haven't yet found the key
-            if [ $found -eq 0 ]; then
-                if [ "$val" = "$1" ]; then found=1; fi
-            # We found the key, the next non-blank value is the mapped value
-            elif ! [ -z "$val" ]; then
-                # Ensure the value isn't another key
-                # If it is, then the value mapped to our key is blank and we skipped over it earlier
-                IFS=' '
-                is_key=0
-                for key in $kak_opt_bundle_plugins; do
-                    if [ "$val" = "$key" ]; then
-                        is_key=1
-                        break
-                    fi
-                done
-                if [ $is_key -eq 0 ]; then returned_val=$val; fi
-                break
-            fi
-        done
-        # Whatever the returned value is, print it out
-        printf "$returned_val"
+    get_installer() {
+        name=$1
+        file="$kak_opt_bundle_path/$name-install"
+        printf "$(get_bundle_file $file)"
+    }
+    get_install_hook() {
+        name=$1
+        file="$kak_opt_bundle_path/$name-post-install"
+        printf "$(get_bundle_file $file)"
+    }
+    get_cleaner() {
+        name=$1
+        file="$kak_opt_bundle_path/$name-clean.sh"
+        printf "$(get_bundle_file $file)"
+    }
+    get_updater() {
+        name=$1
+        file="$kak_opt_bundle_path/$name-update"
+        printf "$(get_bundle_file $file)"
     }
 
     tmp_dir= tmp_file= tmp_cnt=0
@@ -151,7 +124,7 @@ declare-option -hidden str bundle_sh_code %{
 
     post_install_hooks() { # Run post-install hooks of given plugins
         for plugin; do
-            hook=$(get_dict_value $plugin 1)
+            hook=$(get_install_hook $plugin)
             if ! [ -z "$hook" ]; then
                 printf "Running plugin install hook for $plugin\n"
                 cd "$kak_opt_bundle_path/$plugin"
@@ -199,28 +172,16 @@ hook global ModuleLoaded kak %@
 # Internal commands
 
 define-command -hidden bundle-add-installer -params 2 %{
-    set-option -add global bundle_installers %arg{1}
-    set-option -add global bundle_installers 🦀
-    set-option -add global bundle_installers %arg{2}
-    set-option -add global bundle_installers 🦀
+    echo -to-file "%opt{bundle_path}/%arg{1}-install" %arg{2}
 }
 define-command -hidden bundle-add-install-hook -params 2 %{
-    set-option -add global bundle_install_hooks %arg{1}
-    set-option -add global bundle_install_hooks 🦀
-    set-option -add global bundle_install_hooks %arg{2}
-    set-option -add global bundle_install_hooks 🦀
+    echo -to-file "%opt{bundle_path}/%arg{1}-post-install" %arg{2}
 }
 define-command -hidden bundle-add-cleaner -params 2 %{
-    set-option -add global bundle_cleaners %arg{1}
-    set-option -add global bundle_cleaners 🦀
-    set-option -add global bundle_cleaners %arg{2}
-    set-option -add global bundle_cleaners 🦀
+    echo -to-file "%opt{bundle_path}/%arg{1}-clean.sh" %arg{2}
 }
 define-command -hidden bundle-add-updater -params 2 %{
-    set-option -add global bundle_updaters %arg{1}
-    set-option -add global bundle_updaters 🦀
-    set-option -add global bundle_updaters %arg{2}
-    set-option -add global bundle_updaters 🦀
+    echo -to-file "%opt{bundle_path}/%arg{1}-update" %arg{2}
 }
 
 # HACK to allow comparing strings
@@ -314,10 +275,6 @@ define-command bundle-clean -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_cleaners"
-        # "$kak_opt_bundle_installers"
-        # "$kak_opt_bundle_install_hooks"
-        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -351,10 +308,6 @@ define-command bundle-install -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_installers"
-        # "$kak_opt_bundle_cleaners"
-        # "$kak_opt_bundle_install_hooks"
-        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -378,13 +331,13 @@ define-command bundle-install -params .. -docstring %{
         for plugin
         do
 
-            installer=$(get_dict_value $plugin 0)
+            installer=$(get_installer $plugin)
             rm -Rf "$plugin"
             case "$installer" in
                 (*' '*) :;;
                 (*) installer="git clone $installer $plugin" ;;
             esac
-            vvc eval "$installer;setup_clean_file $plugin"
+            vvc eval "$installer"
         done
         bundle_tmp_log_wait
         > "$tmp_dir"/.install-done
@@ -405,10 +358,6 @@ define-command bundle-update -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_cleaners"
-        # "$kak_opt_bundle_install_hooks"
-        # "$kak_opt_bundle_installers"
-        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -430,11 +379,11 @@ define-command bundle-update -params .. -docstring %{
         do
             bundle_cd
             cd $plugin
-            updater=$(get_dict_value $plugin 3)
+            updater=$(get_updater $plugin)
             if [ -z $updater ]; then
                 updater="git pull"
             fi
-            vvc eval "$updater;setup_clean_file $plugin"
+            vvc eval "$updater"
         done
         bundle_tmp_log_wait
         > "$tmp_dir"/.install-done
@@ -476,9 +425,6 @@ define-command bundle-install-hook-update-hook -params .. %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_install_hooks"
-        # "$kak_opt_bundle_installers"
-        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -518,9 +464,6 @@ define-command bundle-install-hook-update-hook -params .. %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_install_hooks"
-        # "$kak_opt_bundle_installers"
-        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
@@ -552,9 +495,6 @@ define-command bundle-status-update-hook -params .. -docstring %{
         # "$kak_command_fifo"
         # "$kak_response_fifo"
         # "$kak_opt_bundle_plugins"
-        # "$kak_opt_bundle_install_hooks"
-        # "$kak_opt_bundle_installers"
-        # "$kak_opt_bundle_updaters"
         # "$kak_opt_bundle_path"
         # "$kak_config"
         # "$kak_opt_bundle_parallel"
