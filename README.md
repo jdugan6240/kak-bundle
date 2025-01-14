@@ -166,8 +166,8 @@ bundle-cleaner one.kak %{
 }
 ```
 Once we've installed the colorscheme we can simply load it with `colorscheme one-dark` like any other colorscheme.
-**WARNING:** you will not be able to define any other install hooks or cleaners when using bundle-theme.
-This is a limitation of our implementation.
+If you need to override the predefined install hook and cleaner, just run `bundle-install-hook` and `bundle-cleaner` again
+in your kakrc.
 
 ### Bootstrap kak-bundle
 
