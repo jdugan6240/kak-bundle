@@ -292,6 +292,10 @@ define-command bundle-clean -params .. -docstring %{
                 eval "$cleaner"
                 rm "$kak_opt_bundle_path/$plugin-clean.sh"
             fi
+            # Don't error out if files don't exist
+            rm "$kak_opt_bundle_path/$plugin-install" 2> /dev/null || true
+            rm "$kak_opt_bundle_path/$plugin-post-install" 2> /dev/null || true
+            rm "$kak_opt_bundle_path/$plugin-update" 2> /dev/null || true
         done
     }
 }
