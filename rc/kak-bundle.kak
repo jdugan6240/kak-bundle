@@ -280,7 +280,6 @@ define-command bundle-clean -params .. -docstring %{
         # "$kak_opt_bundle_parallel"
         # "$kak_client"
         # "$kak_session"
-        bundle_status_init
 		
         [ $# != 0 ] ||
         	eval set -- "$(get_plugins 1)"
