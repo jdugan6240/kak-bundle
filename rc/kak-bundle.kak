@@ -339,7 +339,7 @@ define-command bundle-install -params .. -docstring %{
             rm -Rf "$plugin"
             case "$installer" in
                 (*' '*) :;;
-                (*) installer="git clone $installer $plugin" ;;
+                (*) installer="git clone --recurse-submodules $installer $plugin" ;;
             esac
             vvc eval "$installer"
         done
@@ -385,7 +385,7 @@ define-command bundle-update -params .. -docstring %{
             cd $plugin
             updater=$(get_updater $plugin)
             if [ -z $updater ]; then
-                updater="git pull"
+                updater="git pull --recurse-submodules"
             fi
             vvc eval "$updater"
         done
