@@ -151,7 +151,7 @@ declare-option -hidden str bundle_sh_code %{
 
 hook global ModuleLoaded kak %@
     try %$
-        add-highlighter shared/kakrc/code/bundle_keywords   regex '\s(bundle-clean|bundle-install|bundle-update|bundle-cleaner|bundle-updater|bundle-install-hook|bundle-customload|bundle-noload|bundle|bundle-theme)\s' 0:keyword
+        add-highlighter shared/kakrc/code/bundle_keywords   regex '(?:\s|\A)\K(bundle-clean|bundle-install|bundle-update|bundle-cleaner|bundle-updater|bundle-install-hook|bundle-customload|bundle-noload|bundle|bundle-theme)(?:(?=\s)|\z)' 0:keyword
         add-highlighter shared/kakrc/bundle_install_hook1 region -recurse '\{' '\bbundle-install-hook\K\h[\w\.]+\K\h%\{' '\}' ref sh 
         add-highlighter shared/kakrc/bundle_install_hook2 region -recurse '\[' '\bbundle-install-hook\K\h[\w\.]+\K\h%\[' '\]' ref sh 
         add-highlighter shared/kakrc/bundle_install_hook3 region -recurse '\(' '\bbundle-install-hook\K\h[\w\.]+\K\h%\(' '\)' ref sh 
