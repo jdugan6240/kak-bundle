@@ -222,13 +222,13 @@ default. They are:
 
 **kak-bundle** is designed for speed, and runs no shell code on startup. This makes its load time pretty close to optimal.
 
-The following load times were obtained using the benchmark suite in the benchmark/ directory on the author's machine (your exact times may vary):
+The following load times were obtained using the benchmark suite in the benchmark/ directory on the author's machine (an M4 Mac Mini with 16GB RAM; your exact times may vary):
 
 | Plugin Manager | Mean [ms]     | Min [ms] | Max [ms] |
 |----------------|---------------|----------|----------|
-| kak-bundle     | 237.5 +- 17.8 | 218.0    | 278.4    |
-| [cork.kak](https://github.com/topisani/cork.kak)       | 255.8 +- 10.6 | 244.4    | 280.4    |
-| [plug.kak](https://github.com/andreyorst/plug.kak)       | 375.4 +- 24.1 | 346.4    | 425.0    |
+| kak-bundle     | 205.9 +- 2.3  | 202.8    | 209.7    |
+| [cork.kak](https://github.com/topisani/cork.kak)       | 228.4 +- 1.6  | 226.0    | 231.8    |
+| [plug.kak](https://github.com/andreyorst/plug.kak)       | 355.2 +- 2.7 | 350.9    | 358.5    |
 
 ## Contributing
 
