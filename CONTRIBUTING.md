@@ -26,10 +26,11 @@ Duplicates **WILL** be immediately closed.
 # Code Contributions
 
 If you instead want to submit a bugfix, documentation fix or new feature, there are a few requirements that need to be met before merging can be considered.
+After all, I'm on the hook for maintaining whatever you contribute.
 - All shell code must be POSIX compliant. This is to ensure maximum portability, as not all systems come with bash/zsh as the default shell.
-- Any new features need to be in line with this project's vision. If your feature takes the project in an undesired direction, it will be rejected.
+- Your changes should not meaningfully affect `kak-bundle`'s load time. In other words, Kakoune startup with `kak-bundle` in use should only increase by a couple milliseconds at most, if at all. Load time is the biggest reason to use kak-bundle over other plugin managers, after all.
 - Any code changes should also match the style of the surrounding code, when possible. The big requirement here is 4 space indentation.
-- The documentation should be updated with details of your change(s), if necessary.
+- The documentation (AKA the README) should be updated with details of your change(s), if necessary.
 - The pull request itself must contain a description of the changes you made.
 
 A PR may not be immediately rejected if these conditions aren't met, but they are ultimately required.
