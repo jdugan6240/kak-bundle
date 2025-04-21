@@ -1,7 +1,7 @@
 # kak-bundle
 
 - Upstream: https://codeberg.org/jdugan6240/kak-bundle
-- Mirror: https://github.com/jdugan6240/kak-bundle
+- Read-only mirror (automatically updated from upstream every 8h): https://github.com/jdugan6240/kak-bundle
 
 **kak-bundle** is a plugin manager for Kakoune designed for speed without sacrificing utility. It can install and
 update plugins, and optionally manage loading individual plugins and scripts for testing purposes.
