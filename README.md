@@ -164,7 +164,7 @@ The following example shows an implementation that simply deletes the bundle-sta
 ```kak
 hook global User bundle-after-install %{
   evaluate-commands %sh{
-    if [ "$kak_opt_bundle_succeeded" == "true" ]; then
+    if [ "$kak_opt_bundle_succeeded" = "true" ]; then
       printf "%s\n" "delete-buffer *bundle-status*"
     else
       printf "%s\n" "write -force /tmp/bundle-log"
