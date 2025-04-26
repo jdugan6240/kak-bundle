@@ -11,6 +11,10 @@ declare-option -hidden str bundle_log_running
 declare-option -hidden str bundle_log_finished
 declare-option -hidden str bundle_tmp_dir
 
+declare-option -hidden bool bundle_succeeded true
+declare-option -hidden str-list bundle_failed_install_hooks
+declare-option -hidden str-list bundle_failed_installs
+
 declare-option -hidden str-list bundle_plugins_to_install
 
 declare-option -hidden str bundle_sh_code %{
@@ -111,12 +115,15 @@ declare-option -hidden str bundle_sh_code %{
     }
 
     vvc() { # execute command in parallel
+        plugin=$1
+        shift 1
         bundle_tmp_new job
+        printf '%s\n' "$plugin" >"$tmp_file".plug
         printf '%s\n' "$*" >"$tmp_file".cmd
         printf '%s' "$PWD" >"$tmp_file".pwd
 
         > "$tmp_file.running"; >"$tmp_file".log
-        ( ( "$@" ); rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
+        ( ( "$@" ); printf "%s\n" "$?" > "$tmp_file".out; rm -f "$tmp_file.running" ) >"$tmp_file".log 2>&1 3>&- &
 
         set -- "$tmp_dir"/*.job.running; [ $# != 1 ] || [ -e "$1" ] || set --
         [ $# -lt "$kak_opt_bundle_parallel" ] || wait $!
@@ -129,6 +136,10 @@ declare-option -hidden str bundle_sh_code %{
                 printf "Running plugin install hook for $plugin\n"
                 cd "$kak_opt_bundle_path/$plugin"
                 eval "$hook"
+                if [ $? -ne 0 ]; then
+                    printf "%s\n" "set-option global bundle_succeeded false" | kak -p $kak_session
+                    printf "%s\n" "set-option -add global bundle_failed_install_hooks $plugin" | kak -p $kak_session
+                fi
                 cd "$kak_opt_bundle_path"
             else
                 printf "No plugin install hooks for $plugin\n"
@@ -305,6 +316,9 @@ define-command bundle-install -params .. -docstring %{
     for plugin in $kak_opt_bundle_plugins; do printf "$plugin\n"; done
 } %{
     set-option global bundle_plugins_to_install ""
+    set-option global bundle_failed_install_hooks ""
+    set-option global bundle_failed_installs ""
+    set-option global bundle_succeeded true
     evaluate-commands %sh{
         set -u; exec 3>&1 1>&2
         eval "$kak_opt_bundle_sh_code"
@@ -340,7 +354,7 @@ define-command bundle-install -params .. -docstring %{
                 (*' '*) :;;
                 (*) installer="git clone --recurse-submodules $installer $plugin" ;;
             esac
-            vvc eval "$installer"
+            vvc "$plugin" eval "$installer"
         done
         bundle_tmp_log_wait
         > "$tmp_dir"/.install-done
@@ -354,7 +368,10 @@ define-command bundle-update -params .. -docstring %{
 } -shell-script-candidates %{
     for plugin in $kak_opt_bundle_plugins; do printf "$plugin\n"; done
 } %{
+    set-option global bundle_succeeded true
     set-option global bundle_plugins_to_install ""
+    set-option global bundle_failed_install_hooks ""
+    set-option global bundle_failed_installs ""
     evaluate-commands %sh{
         set -u; exec 3>&1 1>&2
         eval "$kak_opt_bundle_sh_code"
@@ -386,7 +403,7 @@ define-command bundle-update -params .. -docstring %{
             if [ -z $updater ]; then
                 updater="git pull --recurse-submodules"
             fi
-            vvc eval "$updater"
+            vvc "$plugin" eval "$updater"
         done
         bundle_tmp_log_wait
         > "$tmp_dir"/.install-done
@@ -514,8 +531,22 @@ define-command bundle-status-update-hook -params .. -docstring %{
         done
         printf >&3 '%s\n' "bundle-status-log-show $running"
         if [ -e "$tmp_dir/.install-done" ]; then
-    for plugin in $kak_opt_bundle_plugins_to_install; do
+            for plugin in $kak_opt_bundle_plugins_to_install; do
                 setup_load_file $plugin
+            done
+
+            # Check to ensure that all installers/updaters succeeded
+            for exit_code_file in $(ls $tmp_dir/*.out); do
+                exit_code=$(cat $exit_code_file)
+                if [ "$exit_code" -ne 0 ]; then
+                    printf >&3 '%s\n' "set-option global bundle_succeeded false"
+                    # Now grab the .plug file that contains the name of the plugin, using the exit code file as reference
+                    # This is annoying because the "basename" utility chokes on directories with a . in them
+                    base_name=$(printf "%s\n" "$exit_code_file" | rev | cut -d"/" -f1 | rev)
+                    tmp_cnt=$(printf "%s\n" "$base_name" | tr -d -c 0-9)
+                    plugin=$(cat "$tmp_dir/bundle-$tmp_cnt.job.plug")
+                    printf >&3 '%s\n' "set-option -add global bundle_failed_installs $plugin"
+                fi
             done
 
             # Install is done; remove install hooks

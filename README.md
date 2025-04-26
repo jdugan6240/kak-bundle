@@ -140,6 +140,41 @@ bundle-updater kak-lsp %{
 }
 ```
 
+## **kak-bundle** Configuration
+
+**kak-bundle** provides the following options that can be used to change how kak-bundle works:
+
+- `bundle_path` &mdash; This dictates the directory **kak-bundle** installs plugins to. This is `%val{config}/bundle` by default.
+- `bundle_parallel` &mdash; `4` by default, this determines how many parallel install/update jobs `bundle-install` can spawn; set to 1 to disable parallelism.
+
+## **kak-bundle** User Hooks
+
+In addition, **kak-bundle** provides a user-defined hook to further customize how **kak-bundle** works, which does nothing by default. It is:
+
+- `bundle-after-install` &mdash; This is run immediately after `bundle-install` completes (including the post-install code defined for each plugin).
+-
+This hook also exposes the following options, which allows for unique handling based on whether the install/update succeeded or failed:
+
+- `bundle_succeeded` &mdash; This option outlines whether the most recent install/update operation succeeded or failed.
+- `bundle_failed_installs` &mdash; This option lists which installers/updaters, if any, failed in the most recent install/update operation.
+- `bundle_failed_install_hooks` &mdash; This option lists which install hooks, if any, failed in the most recent install/update operation.
+
+The following example shows an implementation that simply deletes the bundle-status buffer if the install/update succeeds, and writes it to /tmp/bundle-log if not:
+
+```kak
+hook global User bundle-after-install %{
+  evaluate-commands %sh{
+    if [ "$kak_opt_bundle_succeeded" == "true" ]; then
+      printf "%s\n" "delete-buffer *bundle-status*"
+    else
+      printf "%s\n" "write -force /tmp/bundle-log"
+      printf "%s\n" "delete-buffer *bundle-status*"
+      printf "%s\n" "info -title 'kak-bundle' 'Install/Update failed'"
+    fi
+  }
+}
+```
+
 ## Tips and Tricks
 
 ### Colorschemes
@@ -206,17 +241,6 @@ hook global User bundle-after-install %{
 Then, run the following on the command line: `kak -e 'bundle-install'`. **kak-bundle** will update the plugins, and then trigger
 the hook, quitting Kakoune and returning you to the command line.
 
-## **kak-bundle** Configuration
-
-**kak-bundle** provides the following options that can be used to change how kak-bundle works:
-
-- `bundle_path` &mdash; This dictates the directory **kak-bundle** installs plugins to. This is `%val{config}/bundle` by default.
-- `bundle_parallel` &mdash; `4` by default, this determines how many parallel install/update jobs `bundle-install` can spawn; set to 1 to disable parallelism.
-
-In addition, **kak-bundle** provides some user-defined hooks to further customize how **kak-bundle** works. None are defined by
-default. They are:
-
-- `bundle-after-install` &mdash; This is run immediately after `bundle-install` completes (including the post-install code defined for each plugin). Example: `hook global User bundle-after-install %{ try %{ delete-buffer *bundle* } }`
 
 ## Performance
 
